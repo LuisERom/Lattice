@@ -1,0 +1,33 @@
+
+Lattice - generation pipeline (Doc 4)
+Traceback (most recent call last):
+  File "C:\Projects_Local\Lattice\generator\generate.py", line 289, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Projects_Local\Lattice\generator\generate.py", line 166, in main
+    payload = run_dedup(
+        artifacts["0_scope"],
+    ...<3 lines>...
+        slug=slug,
+    )
+  File "C:\Projects_Local\Lattice\generator\pipeline\dedup.py", line 57, in run_dedup
+    vectors = embed_texts(texts)
+  File "C:\Projects_Local\Lattice\generator\pipeline\embeddings.py", line 51, in embed_texts
+    with urllib.request.urlopen(req, timeout=180) as resp:
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 189, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 495, in open
+    response = meth(req, response)
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 604, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 533, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 466, in _call_chain
+    result = func(*args)
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 613, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 403: Forbidden

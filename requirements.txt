@@ -1,0 +1,6 @@
+# Lattice generator dependencies.
+#
+# Intentionally empty: generator/generate.py uses only the Python standard
+# library (urllib, json, argparse), so there is nothing to install. This file
+# exists so the contract is explicit and a venv has an obvious home for any
+# future dependency (e.g. swapping urllib for `requests` or the `openai` SDK).

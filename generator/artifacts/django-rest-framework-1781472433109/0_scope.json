@@ -1,0 +1,18 @@
+{
+  "scope": {
+    "name": "Django REST Framework",
+    "scope_level": "deep",
+    "scope_description": "A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features, and best practices for API development.",
+    "include": [],
+    "exclude": [],
+    "summary": "Scripted scope for Django REST Framework."
+  },
+  "outline": [
+    {
+      "section": "Core",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "subsections": []
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "sections": [
+    {
+      "ref": "s1",
+      "name": "Core",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": null
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "topic": {
+    "name": "Django REST Framework (seed slice)",
+    "scope_description": "A small hand-authored slice of DRF used to build and verify the app before the generator exists: serialization, views, routing, and the GET request lifecycle.",
+    "scope_level": "working"
+  },
+  "nodes": [
+    {
+      "ref": "n_http",
+      "type": "concept",
+      "name": "HTTP request/response cycle",
+      "description": "A client sends an HTTP request (method, path, headers, body); the server returns a response (status code, headers, body). Everything DRF does sits on top of this exchange.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_model",
+      "type": "concept",
+      "name": "Django Model",
+      "description": "A Python class mapping to a database table via the Django ORM. Each instance is a row; fields are columns.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_queryset",
+      "type": "concept",
+      "name": "QuerySet",
+      "description": "A lazy, chainable representation of a database query over a model. It is not evaluated until iterated, sliced, or cached.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_serializer",
+      "type": "concept",
+      "name": "Serializer",
+      "description": "Converts model instances or querysets to native Python types (then JSON) for output, and validates/converts incoming data for input.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_validation",
+      "type": "concept",
+      "name": "Serializer validation",
+      "description": "On input, a serializer runs field-level and object-level validation; is_valid() populates validated_data or errors before any save.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_apiview",
+      "type": "concept",
+      "name": "APIView",
+      "description": "DRF's class-based view. Maps HTTP methods to handler methods (get, post, ...), wraps the request/response, and applies authentication, permissions, and throttling.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_response",
+      "type": "concept",
+      "name": "Response object",
+      "description": "DRF's Response takes serialized (native Python) data and renders it into the negotiated content type, attaching the HTTP status code.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_urlrouting",
+      "type": "concept",
+      "name": "URL routing / dispatch",
+      "description": "Django matches the request path against URL patterns and dispatches to the matched view callable.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "n_router",
+      "type": "concept",
+      "name": "Router (DRF)",
+      "description": "Automatically generates URL patterns for a ViewSet, wiring standard actions (list, retrieve, create, ...) to routes.",
+      "grounding_sensitive": false
+    },
+    {
+      "ref": "p_get_lifecycle",
+      "type": "procedure",
+      "name": "GET request lifecycle through a DRF endpoint",
+      "description": "The ordered path a GET takes: URL routing dispatches to a view, the view builds a queryset, a serializer converts it, and a Response renders the result back to the client.",
+      "grounding_sensitive": false
+    }
+  ],
+  "edges": [
+    { "source_ref": "n_model", "target_ref": "n_queryset", "type": "prerequisite_of" },
+    { "source_ref": "n_queryset", "target_ref": "n_serializer", "type": "prerequisite_of" },
+    { "source_ref": "n_serializer", "target_ref": "n_validation", "type": "prerequisite_of" },
+    { "source_ref": "n_http", "target_ref": "n_apiview", "type": "prerequisite_of" },
+    { "source_ref": "n_http", "target_ref": "n_urlrouting", "type": "prerequisite_of" },
+    { "source_ref": "n_http", "target_ref": "n_response", "type": "prerequisite_of" },
+    { "source_ref": "n_apiview", "target_ref": "n_router", "type": "prerequisite_of" },
+    { "source_ref": "n_urlrouting", "target_ref": "n_router", "type": "prerequisite_of" },
+    { "ref": "e_ser_qs", "source_ref": "n_queryset", "target_ref": "n_serializer", "type": "used_in" },
+    { "source_ref": "n_urlrouting", "target_ref": "p_get_lifecycle", "type": "part_of", "order_index": 1 },
+    { "source_ref": "n_apiview", "target_ref": "p_get_lifecycle", "type": "part_of", "order_index": 2 },
+    { "source_ref": "n_queryset", "target_ref": "p_get_lifecycle", "type": "part_of", "order_index": 3 },
+    { "source_ref": "n_serializer", "target_ref": "p_get_lifecycle", "type": "part_of", "order_index": 4 },
+    { "source_ref": "n_response", "target_ref": "p_get_lifecycle", "type": "part_of", "order_index": 5 }
+  ],
+  "items": [
+    {
+      "ref": "i_http",
+      "kind": "atomic",
+      "member_node_refs": ["n_http"],
+      "questions": [
+        { "method": "cloze", "prompt": "An HTTP request carries a method, path, headers, and body; the server returns a response with a status code, headers, and a ____.", "expected_answer": "body" },
+        { "method": "free_recall", "prompt": "Explain the HTTP request/response cycle and the main parts of each message.", "expected_answer": "A client sends a request (method, path, headers, optional body). The server processes it and returns a response containing a status code, headers, and an optional body. It is stateless: each request is independent." },
+        { "method": "application", "prompt": "A client calls GET /api/books/ and gets back JSON with status 200. Identify the request method, the path, and the response status code.", "expected_answer": "Method GET, path /api/books/, response status code 200 (OK)." }
+      ]
+    },
+    {
+      "ref": "i_model",
+      "kind": "atomic",
+      "member_node_refs": ["n_model"],
+      "questions": [
+        { "method": "cloze", "prompt": "A Django Model class maps to a database ____, where each instance is a row and each field is a column.", "expected_answer": "table" },
+        { "method": "free_recall", "prompt": "What is a Django Model and how does it relate to the database?", "expected_answer": "A Model is a Python class mapping to a DB table via the ORM. Each instance corresponds to a row; declared fields correspond to columns. It provides a Python API for queries and persistence." },
+        { "method": "application", "prompt": "You need to store books with a title and author. Sketch the Model fields you would declare.", "expected_answer": "A Book(models.Model) with title = models.CharField(max_length=...) and author = models.CharField(...) (or a ForeignKey to an Author model)." }
+      ]
+    },
+    {
+      "ref": "i_queryset",
+      "kind": "atomic",
+      "member_node_refs": ["n_queryset"],
+      "questions": [
+        { "method": "cloze", "prompt": "A QuerySet is ____: it is not evaluated until you iterate, slice, or cache it.", "expected_answer": "lazy" },
+        { "method": "free_recall", "prompt": "What is a QuerySet and what does its laziness mean in practice?", "expected_answer": "A QuerySet is a chainable representation of a DB query over a model. Laziness means building/filtering it issues no SQL; the query runs only when the QuerySet is evaluated (iterated, sliced with a step, len/list, or cached)." },
+        { "method": "application", "prompt": "Book.objects.filter(author='Le Guin') has been assigned to a variable but never iterated. Has the database been queried yet? Why?", "expected_answer": "No. filter() returns a lazy QuerySet; no SQL runs until it is evaluated (e.g., iterated or listed)." }
+      ]
+    },
+    {
+      "ref": "i_serializer",
+      "kind": "atomic",
+      "member_node_refs": ["n_serializer"],
+      "questions": [
+        { "method": "cloze", "prompt": "On output a serializer converts model instances/querysets to native Python types; on input it validates and ____ incoming data.", "expected_answer": "deserializes / converts" },
+        { "method": "free_recall", "prompt": "Describe both directions a DRF serializer handles.", "expected_answer": "Output: it serializes model instances or querysets into native Python datatypes that renderers turn into JSON. Input: it deserializes incoming data, runs validation, and exposes validated_data for saving." },
+        { "method": "application", "prompt": "Given a Book queryset to return as JSON, what serializer argument lets one serializer handle many objects?", "expected_answer": "Pass many=True (e.g., BookSerializer(queryset, many=True)) so it serializes a list of objects." }
+      ]
+    },
+    {
+      "ref": "i_validation",
+      "kind": "atomic",
+      "member_node_refs": ["n_validation"],
+      "questions": [
+        { "method": "cloze", "prompt": "Calling serializer.____() runs validation and populates either validated_data or errors.", "expected_answer": "is_valid" },
+        { "method": "free_recall", "prompt": "Explain how serializer validation works on input.", "expected_answer": "On input you call is_valid(); the serializer runs field-level validators then object-level validate(). On success validated_data is populated; on failure errors is populated. You only save after is_valid() passes (often is_valid(raise_exception=True))." },
+        { "method": "application", "prompt": "A POST sends an empty required title. What does is_valid() return and where does the message go?", "expected_answer": "is_valid() returns False and the message goes into serializer.errors (e.g., {'title': ['This field is required.']})." }
+      ]
+    },
+    {
+      "ref": "i_apiview",
+      "kind": "atomic",
+      "member_node_refs": ["n_apiview"],
+      "questions": [
+        { "method": "cloze", "prompt": "In an APIView, an incoming GET is dispatched to the view's ____ method.", "expected_answer": "get" },
+        { "method": "free_recall", "prompt": "What does DRF's APIView provide over a plain Django view?", "expected_answer": "It maps HTTP methods to handler methods (get/post/...), wraps incoming requests in DRF's Request and uses Response, and applies authentication, permissions, throttling, and content negotiation." },
+        { "method": "application", "prompt": "You want a class-based endpoint that returns a list on GET and creates on POST. Which two methods do you implement on the APIView?", "expected_answer": "get(self, request, ...) and post(self, request, ...)." }
+      ]
+    },
+    {
+      "ref": "i_response",
+      "kind": "atomic",
+      "member_node_refs": ["n_response"],
+      "questions": [
+        { "method": "cloze", "prompt": "DRF's Response takes already-serialized native data and renders it into the negotiated ____ type.", "expected_answer": "content" },
+        { "method": "free_recall", "prompt": "What is the role of DRF's Response object?", "expected_answer": "Response wraps serialized native Python data plus an HTTP status code, then defers rendering to the negotiated content type (usually JSON) via the configured renderer." },
+        { "method": "application", "prompt": "Return serialized data with a 201 status after creating a resource. What do you pass to Response?", "expected_answer": "Response(serializer.data, status=status.HTTP_201_CREATED)." }
+      ]
+    },
+    {
+      "ref": "i_urlrouting",
+      "kind": "atomic",
+      "member_node_refs": ["n_urlrouting"],
+      "questions": [
+        { "method": "cloze", "prompt": "Django matches the request ____ against URL patterns to choose which view to call.", "expected_answer": "path" },
+        { "method": "free_recall", "prompt": "How does Django decide which view handles a request?", "expected_answer": "It walks the URLconf patterns in order, matching the request path against each; the first match dispatches to that view callable, passing any captured parameters." }
+      ]
+    },
+    {
+      "ref": "i_router",
+      "kind": "atomic",
+      "member_node_refs": ["n_router"],
+      "questions": [
+        { "method": "cloze", "prompt": "A DRF Router auto-generates URL patterns for a ____, wiring standard actions to routes.", "expected_answer": "ViewSet" },
+        { "method": "free_recall", "prompt": "What problem does a DRF Router solve?", "expected_answer": "It removes hand-written URL boilerplate by generating the standard URL patterns for a ViewSet's actions (list, retrieve, create, update, destroy) from a single register() call." }
+      ]
+    },
+    {
+      "ref": "i_conn_ser_qs",
+      "kind": "connection",
+      "member_node_refs": ["n_serializer", "n_queryset"],
+      "edge_ref": "e_ser_qs",
+      "questions": [
+        { "method": "relational", "prompt": "How does a Serializer relate to a QuerySet in producing a JSON list response?", "expected_answer": "The view builds a QuerySet (the data source); the Serializer (with many=True) consumes that QuerySet and converts each instance to native data for rendering. The QuerySet is used inside the serialization step." },
+        { "method": "free_recall", "prompt": "Explain the link between a QuerySet and a Serializer.", "expected_answer": "A QuerySet supplies the model instances; a Serializer transforms them into output representations. The serializer depends on the queryset as its input but adds the conversion/validation layer." }
+      ]
+    },
+    {
+      "ref": "i_comp_lifecycle",
+      "kind": "composition",
+      "member_node_refs": [
+        "p_get_lifecycle",
+        "n_urlrouting",
+        "n_apiview",
+        "n_queryset",
+        "n_serializer",
+        "n_response"
+      ],
+      "ordering": ["n_urlrouting", "n_apiview", "n_queryset", "n_serializer", "n_response"],
+      "questions": [
+        { "method": "relational", "prompt": "Put the stages of a GET through a DRF endpoint in order: Serializer, URL routing, Response, QuerySet, APIView.", "expected_answer": "1) URL routing/dispatch, 2) APIView handler, 3) QuerySet built, 4) Serializer converts, 5) Response renders." },
+        { "method": "free_recall", "prompt": "Walk through what happens to a GET request from URL to JSON in a DRF endpoint.", "expected_answer": "URL routing matches the path and dispatches to the APIView's get(); the view builds a QuerySet for the data; a Serializer (many=True) converts those instances to native data; that data is wrapped in a Response which renders it to JSON with a 200 status." },
+        { "method": "application", "prompt": "A list endpoint returns an empty [] with status 200 instead of the expected rows. Using the lifecycle, where would you look first?", "expected_answer": "Trace the order: routing hit the right view? the QuerySet's filter is not excluding everything? the serializer used many=True? Most likely the QuerySet is empty (over-restrictive filter) since routing/serializer/response succeeded with a 200." }
+      ]
+    }
+  ]
+}

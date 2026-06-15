@@ -1,0 +1,39 @@
+{
+  "sections": [
+    {
+      "ref": "s1",
+      "name": "Django REST Framework",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": null
+    },
+    {
+      "ref": "s2",
+      "name": "Setup",
+      "in": "installation and configuration",
+      "out": "advanced deployment strategies",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s3",
+      "name": "Core Functionalities",
+      "in": "serializers, views, and routers",
+      "out": "non-RESTful practices",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s4",
+      "name": "Advanced Features",
+      "in": "authentication, permissions, and throttling",
+      "out": "basic CRUD operations",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s5",
+      "name": "Best Practices",
+      "in": "API design principles and documentation",
+      "out": "deprecated methods",
+      "parent": "Django REST Framework"
+    }
+  ]
+}

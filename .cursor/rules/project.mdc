@@ -1,0 +1,31 @@
+---
+description: Lattice v1 invariants — always loaded
+alwaysApply: true
+---
+
+Lattice is a Personal Knowledge Mastery System. Specs live in
+`01-vision-and-architecture.md` (the "why"), `02-v1-scope.md` (v1 in/out), and
+`03-build-plan.md` (milestones). The invariants below are non-negotiable; when a
+proposal contradicts them, the invariants win.
+
+1. Build against the FULL Doc 1 schema, including columns v1 does not use
+   (`embedding`, `verification`, cross-topic fields). Never trim the schema.
+2. Every assessment table keys off `item_id`, never `node_id`.
+3. The schedulable unit is an ITEM, mapped 1:1 to a `ts-fsrs` card. Never
+   schedule raw nodes.
+4. Never hand-roll spaced-repetition math. All scheduling goes through `ts-fsrs`.
+5. Store the user's typed answer on every review, even when empty.
+6. `difficulty` and `centrality` are computed by the app after import from graph
+   structure — never trusted from the generator.
+7. Generation lives only in the Python script and only emits JSON. The runtime
+   app never calls an LLM in v1.
+8. v1 is ONE topic. Do not build appending, cross-topic edges, integration
+   items, gap-search, embeddings, grounding, or AI grading. Leave schema room,
+   write no code.
+9. Self-grade only. No auto-grading in v1.
+10. Thresholds and mastery weighting are read from settings at runtime, never
+    hardcoded.
+
+Architecture: DB access is server-side only (never import `better-sqlite3` into
+client components). Layering: `lib/db` (data), `lib/fsrs` (scheduling),
+`lib/mastery` (status/gating/mastery), `lib/import` (JSON import).

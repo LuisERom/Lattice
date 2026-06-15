@@ -1,0 +1,22 @@
+{
+  "candidates": [
+    {
+      "section_ref": "s1",
+      "name": "Core concept A",
+      "description": "Core concept in Core.",
+      "tentative_type": "concept"
+    },
+    {
+      "section_ref": "s1",
+      "name": "Core concept B",
+      "description": "Another core concept in Core.",
+      "tentative_type": "concept"
+    },
+    {
+      "section_ref": "s1",
+      "name": "Core workflow",
+      "description": "Procedure in Core.",
+      "tentative_type": "procedure"
+    }
+  ]
+}

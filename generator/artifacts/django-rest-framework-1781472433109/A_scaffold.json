@@ -1,0 +1,109 @@
+{
+  "sections": [
+    {
+      "ref": "s1",
+      "name": "Django REST Framework",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": null
+    },
+    {
+      "ref": "s2",
+      "name": "Setup",
+      "in": "Django project configuration, installation of Django REST Framework",
+      "out": "advanced deployment strategies",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s3",
+      "name": "Core Functionalities",
+      "in": "serializers, viewsets, routers, authentication, permissions",
+      "out": "lesser-known features",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s4",
+      "name": "Advanced Features",
+      "in": "pagination, filtering, throttling, versioning",
+      "out": "basic usage examples",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s5",
+      "name": "Best Practices",
+      "in": "API design principles, documentation, testing, performance optimization",
+      "out": "outdated practices",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s6",
+      "name": "Error Handling and Response Formatting",
+      "in": "error handling strategies, response formatting techniques",
+      "out": "basic error messages",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s7",
+      "name": "Security Best Practices",
+      "in": "authentication, authorization, data protection",
+      "out": "general security tips",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s8",
+      "name": "Integration with Front-End Frameworks",
+      "in": "connecting Django REST Framework with React, Angular, Vue.js",
+      "out": "backend-only examples",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s9",
+      "name": "Testing Strategies",
+      "in": "unit testing, integration testing, using tools like pytest and Django's test framework",
+      "out": "general testing concepts",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s10",
+      "name": "Performance Optimization",
+      "in": "caching strategies, database optimization, efficient query handling",
+      "out": "basic performance tips",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s11",
+      "name": "Common Pitfalls",
+      "in": "common challenges, troubleshooting, best practices to avoid issues",
+      "out": "theoretical pitfalls",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s12",
+      "name": "Deployment Strategies",
+      "in": "effective deployment of Django REST Framework applications in production environments",
+      "out": "theoretical deployment concepts",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s13",
+      "name": "API Versioning Strategies",
+      "in": "different approaches to versioning APIs",
+      "out": "basic versioning concepts",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s14",
+      "name": "Rate Limiting",
+      "in": "implementing rate limiting in APIs for usage control",
+      "out": "basic rate limiting techniques",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s15",
+      "name": "Monitoring and Logging",
+      "in": "best practices for monitoring API performance and logging requests/responses",
+      "out": "basic monitoring techniques",
+      "parent": "Django REST Framework"
+    }
+  ]
+}

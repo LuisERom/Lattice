@@ -1,0 +1,407 @@
+
+Lattice - generation pipeline (Doc 4)
+  [LLM->] PHASE_A_SCAFFOLD model=gpt-4o-mini msgs=2 ~152 tokens
+         [system] Return JSON only.
+         [user] PHASE_A_SCAFFOLD Create a hierarchical section scaffold inside the frozen scope. SCOPE NAME: Django REST Framework SCOPE LEVEL: deep SCOPE DESCRIPTION: A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features, best prac...
+  [LLM<-] PHASE_A_SCAFFOLD done in 6151ms (~152 tokens sent)
+  [LLM->] PHASE_A_CRITIC model=gpt-4o-mini msgs=2 ~429 tokens
+         [system] Return JSON only.
+         [user] PHASE_A_CRITIC Review scaffold for missing/miscoped major areas. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features, best pract...
+  [LLM<-] PHASE_A_CRITIC done in 1964ms (~429 tokens sent)
+  [LLM->] PHASE_A_SCAFFOLD model=gpt-4o-mini msgs=2 ~404 tokens
+         [system] Return JSON only.
+         [user] PHASE_A_SCAFFOLD Revise this scaffold using critic feedback. CURRENT SECTIONS: [{'ref': 's1', 'name': 'Django REST Framework', 'in': 'all core subject areas', 'out': 'obscure historical trivia', 'parent': None}, {'ref': 's2', 'name': 'Setup', 'in': 'Django project integration and configuration', 'ou...
+  [LLM<-] PHASE_A_SCAFFOLD done in 8896ms (~404 tokens sent)
+  [LLM->] PHASE_A_CRITIC model=gpt-4o-mini msgs=2 ~618 tokens
+         [system] Return JSON only.
+         [user] PHASE_A_CRITIC Review scaffold for missing/miscoped major areas. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features, best pract...
+  [LLM<-] PHASE_A_CRITIC done in 1749ms (~618 tokens sent)
+  [LLM->] PHASE_A_SCAFFOLD model=gpt-4o-mini msgs=2 ~618 tokens
+         [system] Return JSON only.
+         [user] PHASE_A_SCAFFOLD Revise this scaffold using critic feedback. CURRENT SECTIONS: [{'ref': 's1', 'name': 'Django REST Framework', 'in': 'all core subject areas', 'out': 'obscure historical trivia', 'parent': None}, {'ref': 's2', 'name': 'Setup', 'in': 'Django project integration and configuration', 'ou...
+  [LLM<-] PHASE_A_SCAFFOLD done in 13715ms (~618 tokens sent)
+  [LLM->] PHASE_A_CRITIC model=gpt-4o-mini msgs=2 ~771 tokens
+         [system] Return JSON only.
+         [user] PHASE_A_CRITIC Review scaffold for missing/miscoped major areas. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features, best pract...
+  [LLM<-] PHASE_A_CRITIC done in 1948ms (~771 tokens sent)
+  [LLM->] PHASE_A_SCAFFOLD model=gpt-4o-mini msgs=2 ~743 tokens
+         [system] Return JSON only.
+         [user] PHASE_A_SCAFFOLD Revise this scaffold using critic feedback. CURRENT SECTIONS: [{'ref': 's1', 'name': 'Django REST Framework', 'in': 'all core subject areas', 'out': 'obscure historical trivia', 'parent': None}, {'ref': 's2', 'name': 'Setup', 'in': 'Django project integration and configuration', 'ou...
+  [LLM<-] PHASE_A_SCAFFOLD done in 13004ms (~743 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~295 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~303 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~308 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~307 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 4471ms (~303 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~550 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 832ms (~550 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~218 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 5442ms (~308 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~639 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 928ms (~639 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~232 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 6488ms (~307 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~684 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 1097ms (~684 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~254 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2590ms (~218 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~345 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2286ms (~232 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~341 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 1627ms (~254 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~356 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 9690ms (~295 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~1050 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 724ms (~1050 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~286 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2845ms (~341 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~514 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3711ms (~345 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~502 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3543ms (~356 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~582 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2609ms (~286 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~424 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4485ms (~502 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~304 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 3678ms (~424 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~631 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 5573ms (~514 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~303 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 4584ms (~582 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~305 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 5967ms (~631 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~311 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 6754ms (~304 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~695 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_ENUMERATE done in 6250ms (~305 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~665 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 1027ms (~695 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~247 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 6905ms (~303 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~707 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 1210ms (~665 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~265 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 825ms (~707 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~252 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2149ms (~265 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~353 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2340ms (~252 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~361 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3534ms (~247 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~377 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 6783ms (~311 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~584 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 865ms (~584 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~239 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3467ms (~353 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~521 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3671ms (~377 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~532 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4456ms (~361 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~603 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 1931ms (~239 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~302 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4191ms (~521 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~305 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 4234ms (~603 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~310 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 4856ms (~532 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~308 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 5951ms (~302 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~441 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 7649ms (~305 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~656 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_ENUMERATE done in 4169ms (~441 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~310 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 6775ms (~308 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~620 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 814ms (~656 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~249 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 814ms (~620 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~259 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 7732ms (~310 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~606 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 770ms (~606 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~259 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2263ms (~249 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~336 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2195ms (~259 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~363 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 1939ms (~259 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~351 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 5151ms (~310 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~633 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_ENUMERATE done in 2407ms (~363 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~523 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3315ms (~336 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~536 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 1182ms (~633 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~254 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 1703ms (~254 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~335 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4255ms (~351 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~490 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4199ms (~523 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~313 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 4683ms (~536 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~311 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 3019ms (~335 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~486 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3347ms (~490 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~309 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 3735ms (~486 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~306 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 5514ms (~313 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~658 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_ENUMERATE done in 5179ms (~311 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~604 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 1088ms (~658 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~262 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 895ms (~604 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~269 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 6523ms (~309 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~690 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 836ms (~690 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~261 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2596ms (~262 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~358 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2818ms (~269 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~456 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 1807ms (~261 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~333 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 7210ms (~306 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~704 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 892ms (~704 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~255 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3809ms (~358 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~591 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2655ms (~333 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~456 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4667ms (~456 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~772 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2323ms (~255 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~356 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 3446ms (~456 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~306 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Enumerate atomic concepts and procedure candidates for ONE section only. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, adv...
+  [LLM<-] PHASE_B_ENUMERATE done in 5593ms (~591 tokens sent)
+  [LLM<-] PHASE_B_ENUMERATE done in 3926ms (~356 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~557 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 6109ms (~772 tokens sent)
+  [LLM<-] PHASE_B_ENUMERATE done in 3979ms (~557 tokens sent)
+  [LLM<-] PHASE_B_ENUMERATE done in 6675ms (~306 tokens sent)
+  [LLM->] PHASE_B_GAP_CRITIC model=gpt-4o-mini msgs=2 ~656 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_GAP_CRITIC List important missing concepts for this section if any. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advanced features,...
+  [LLM<-] PHASE_B_GAP_CRITIC done in 1102ms (~656 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~267 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 2818ms (~267 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~386 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4542ms (~386 tokens sent)
+  [LLM->] PHASE_B_ENUMERATE model=gpt-4o-mini msgs=2 ~593 tokens
+         [system] Return JSON only.
+         [user] PHASE_B_ENUMERATE Re-enumerate from a different angle, only adding truly new concepts. SCOPE: {'name': 'Django REST Framework', 'scope_level': 'deep', 'scope_description': 'A comprehensive exploration of Django REST Framework, covering its setup within a Django project, core functionalities, advance...
+  [LLM<-] PHASE_B_ENUMERATE done in 4986ms (~593 tokens sent)
+  [EMBED] 1024 texts -> 8 batch(es) | endpoint=https://api.voyageai.com/v1/embeddings | model=voyage-3-lite
+  [EMBED->] batch 1/8 size=128
+
+[FATAL] HTTP Error 403: Forbidden
+Traceback (most recent call last):
+  File "C:\Projects_Local\Lattice\generator\generate.py", line 120, in main
+    return _run_phases(subject, slug, artifacts, args, from_idx)
+  File "C:\Projects_Local\Lattice\generator\generate.py", line 187, in _run_phases
+    payload = run_dedup(
+        artifacts["0_scope"],
+    ...<3 lines>...
+        slug=slug,
+    )
+  File "C:\Projects_Local\Lattice\generator\pipeline\dedup.py", line 57, in run_dedup
+    vectors = embed_texts(texts)
+  File "C:\Projects_Local\Lattice\generator\pipeline\embeddings.py", line 88, in embed_texts
+    result = _embed_batch(batch, key, model, base)
+  File "C:\Projects_Local\Lattice\generator\pipeline\embeddings.py", line 39, in _embed_batch
+    with urllib.request.urlopen(req, timeout=180) as resp:
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 189, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 495, in open
+    response = meth(req, response)
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 604, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 533, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 466, in _call_chain
+    result = func(*args)
+  File "C:\Program Files\Python313\Lib\urllib\request.py", line 613, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 403: Forbidden
+

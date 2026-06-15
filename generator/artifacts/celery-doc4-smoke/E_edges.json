@@ -1,0 +1,11 @@
+{
+  "edges": [
+    {
+      "ref": "e1",
+      "source_ref": "n1",
+      "target_ref": "n2",
+      "type": "prerequisite_of",
+      "order_index": null
+    }
+  ]
+}

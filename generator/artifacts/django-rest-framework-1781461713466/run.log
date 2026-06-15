@@ -1,0 +1,29 @@
+
+Lattice - generation pipeline (Doc 4)
+Traceback (most recent call last):
+  File "C:\Projects_Local\Lattice\generator\generate.py", line 289, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Projects_Local\Lattice\generator\generate.py", line 150, in main
+    payload = run_enumeration(
+        artifacts["0_scope"],
+    ...<3 lines>...
+        slug=slug,
+    )
+  File "C:\Projects_Local\Lattice\generator\pipeline\enumerate_concepts.py", line 163, in run_enumeration
+    candidates.extend(fut.result())
+                      ~~~~~~~~~~^^
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Program Files\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Projects_Local\Lattice\generator\pipeline\enumerate_concepts.py", line 123, in _enum_one
+    for c in _normalize(list(more.get("candidates") or []), section["ref"]):
+             ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects_Local\Lattice\generator\pipeline\enumerate_concepts.py", line 17, in _normalize
+    name = str(c.get("name") or "").strip()
+               ^^^^^
+AttributeError: 'str' object has no attribute 'get'

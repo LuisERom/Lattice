@@ -1,0 +1,39 @@
+{
+  "sections": [
+    {
+      "ref": "s1",
+      "name": "Django REST Framework",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": null
+    },
+    {
+      "ref": "s2",
+      "name": "Setup",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s3",
+      "name": "Core Functionalities",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s4",
+      "name": "Advanced Features",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": "Django REST Framework"
+    },
+    {
+      "ref": "s5",
+      "name": "Best Practices",
+      "in": "all core subject areas",
+      "out": "obscure historical trivia",
+      "parent": "Django REST Framework"
+    }
+  ]
+}

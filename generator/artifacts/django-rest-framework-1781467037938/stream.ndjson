@@ -1,0 +1,6 @@
+{"type": "phase", "name": "0_scope"}
+{"type": "phase", "name": "A_scaffold"}
+{"type": "scaffold", "sections": [{"ref": "s1", "name": "Django REST Framework", "in": "all core subject areas", "out": "obscure historical trivia", "parent": null}, {"ref": "s2", "name": "Setup", "in": "installation and configuration", "out": "advanced deployment strategies", "parent": "Django REST Framework"}, {"ref": "s3", "name": "Core Functionalities", "in": "serializers, views, and routers", "out": "non-RESTful approaches", "parent": "Django REST Framework"}, {"ref": "s4", "name": "Advanced Features", "in": "authentication, permissions, and throttling", "out": "basic CRUD operations", "parent": "Django REST Framework"}, {"ref": "s5", "name": "Best Practices", "in": "API design principles and versioning", "out": "outdated practices", "parent": "Django REST Framework"}]}
+{"type": "phase", "name": "B_concepts"}
+{"type": "enumeration", "count": 344}
+{"type": "phase", "name": "C_nodes"}
