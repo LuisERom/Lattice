@@ -16,7 +16,7 @@ from typing import Any
 from pipeline.artifacts import phase_done, read_phase, write_phase
 from pipeline.assemble import build_contract, write_generated_output
 from pipeline.audit import run_global_audit
-from pipeline.common import VALID_LEVELS, ask, repo_root, slugify
+from pipeline.common import VALID_LEVELS, ask, generated_dir, repo_root, slugify
 from pipeline.dedup import run_dedup
 from pipeline.detail import run_detailing
 from pipeline.edges import run_edges
@@ -65,7 +65,7 @@ def _should_run_phase(slug: str, phase: str, phase_idx: int, from_idx: int | Non
 def _load_or_fail(slug: str, phase: str) -> dict[str, Any]:
     if not phase_done(slug, phase):
         raise RuntimeError(
-            f"Missing required checkpoint generator/artifacts/{slug}/{phase}.json. "
+            f"Missing required checkpoint artifacts/{slug}/{phase}.json. "
             "Run prior phases first or remove --from-phase."
         )
     return read_phase(slug, phase)
@@ -279,7 +279,7 @@ def _run_phases(
         audit_payload = _load_or_fail(slug, "H_audit")
 
     root = repo_root()
-    out_dir = root / "data" / "generated"
+    out_dir = generated_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = Path(args.out) if args.out else out_dir / f"{slug}.json"
     review_path = out_path.with_suffix(".review.md")

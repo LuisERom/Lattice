@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import { type NextRequest } from "next/server";
 import { importMap } from "@/lib/import";
 import type { ContractMap } from "@/lib/import/contract";
+import { generatedTopicPath } from "@/lib/paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "slug is required" }, { status: 400 });
   }
 
-  const filePath = path.join(process.cwd(), "data", "generated", `${slug}.json`);
+  const filePath = generatedTopicPath(slug);
   try {
     const map = JSON.parse(readFileSync(filePath, "utf8")) as ContractMap;
     const result = importMap(map);

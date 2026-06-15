@@ -5,8 +5,8 @@ import {
   readSync,
   statSync,
 } from "node:fs";
-import path from "node:path";
 import { type NextRequest } from "next/server";
+import { artifactRunDir } from "@/lib/paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,13 +26,7 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "slug query param is required" }, { status: 400 });
   }
 
-  const streamPath = path.join(
-    process.cwd(),
-    "generator",
-    "artifacts",
-    slug,
-    "stream.ndjson"
-  );
+  const streamPath = path.join(artifactRunDir(slug), "stream.ndjson");
 
   // Resume from the byte offset carried by the browser on automatic reconnect.
   const lastEventId = req.headers.get("last-event-id");

@@ -2,6 +2,7 @@ import { mkdirSync, createWriteStream, writeFileSync, readFileSync } from "node:
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { type NextRequest } from "next/server";
+import { artifactRunDir } from "@/lib/paths";
 
 /**
  * Read the project .env file from disk at spawn time so that variables added
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
   const slug = slugify(baseSlug);
 
   const root = path.join(/* turbopackIgnore: true */ process.cwd());
-  const artifactDir = path.join(root, "generator", "artifacts", slug);
+  const artifactDir = artifactRunDir(slug);
   mkdirSync(artifactDir, { recursive: true });
   const streamPath = path.join(artifactDir, "stream.ndjson");
   const runLogPath = path.join(artifactDir, "run.log");

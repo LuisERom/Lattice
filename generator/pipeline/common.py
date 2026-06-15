@@ -37,6 +37,26 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def lattice_data_root() -> Path | None:
+    load_dotenv()
+    value = os.environ.get("LATTICE_DATA_DIR", "").strip()
+    return Path(value) if value else None
+
+
+def generated_dir() -> Path:
+    root = lattice_data_root()
+    if root:
+        return root / "generated"
+    return repo_root() / "data" / "generated"
+
+
+def artifacts_root_dir() -> Path:
+    root = lattice_data_root()
+    if root:
+        return root / "artifacts"
+    return repo_root() / "generator" / "artifacts"
+
+
 def load_dotenv() -> None:
     env_path = repo_root() / ".env"
     if not env_path.exists():

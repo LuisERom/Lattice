@@ -8,6 +8,7 @@ import {
   parseStreamNdjson,
   type PhaseLogGroup,
 } from "@/lib/generate/stream-log";
+import { artifactsDir, generatedTopicPath } from "@/lib/paths";
 
 export type { GenerationRunSummary };
 
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 const PHASE_SET = new Set<string>(GENERATION_PHASES);
 
 function artifactsRoot(): string {
-  return path.join(process.cwd(), "generator", "artifacts");
+  return artifactsDir();
 }
 
 function safeSlug(slug: string): boolean {
@@ -87,7 +88,7 @@ function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | nul
 
   const ts = slugTimestamp(slug);
   const dirStat = statSync(dirPath);
-  const importPath = path.join(process.cwd(), "data", "generated", `${slug}.json`);
+  const importPath = generatedTopicPath(slug);
 
   return {
     slug,

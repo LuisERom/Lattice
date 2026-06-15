@@ -4,11 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .common import repo_root
+from .common import artifacts_root_dir
 
 
 def artifact_root(slug: str) -> Path:
-    return repo_root() / "generator" / "artifacts" / slug
+    return artifacts_root_dir() / slug
 
 
 def phase_path(slug: str, phase: str) -> Path:

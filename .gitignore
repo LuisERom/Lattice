@@ -32,6 +32,10 @@ next-env.d.ts
 /data/*.db-shm
 /data/*.db-wal
 
+# generator output (local; prefer LATTICE_DATA_DIR outside the repo)
+/data/generated/
+/generator/artifacts/
+
 # python
 __pycache__/
 *.pyc
