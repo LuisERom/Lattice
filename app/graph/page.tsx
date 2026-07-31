@@ -108,6 +108,68 @@ function bridgeNodeId(edgeId: number) {
   return `x${edgeId}`;
 }
 
+const COSE_LAYOUT = {
+  name: "cose" as const,
+  animate: false,
+  fit: true,
+  padding: 30,
+  nodeRepulsion: 12000,
+  nodeOverlap: 20,
+  idealEdgeLength: 80,
+};
+
+/**
+ * After cose, push any overlapping topic nodes apart.
+ * A few O(n²) passes — cheap for typical topic sizes, no physics.
+ */
+function separateOverlappingNodes(cy: Core, gap = 8) {
+  const nodes = cy.nodes('[kind = "node"]').toArray();
+  const n = nodes.length;
+  if (n < 2) return;
+
+  const radii = nodes.map((node) => (node.data("size") as number) / 2);
+
+  for (let iter = 0; iter < 40; iter++) {
+    let moved = false;
+    for (let i = 0; i < n; i++) {
+      const a = nodes[i]!;
+      for (let j = i + 1; j < n; j++) {
+        const b = nodes[j]!;
+        const pa = a.position();
+        const pb = b.position();
+        const minDist = radii[i]! + radii[j]! + gap;
+        let dx = pb.x - pa.x;
+        let dy = pb.y - pa.y;
+        let dist = Math.hypot(dx, dy);
+        if (dist >= minDist) continue;
+        if (dist < 1e-6) {
+          const angle = (i * 2.399963 + j) % (Math.PI * 2);
+          dx = Math.cos(angle);
+          dy = Math.sin(angle);
+          dist = 1;
+        }
+        const push = (minDist - dist) / 2;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        a.position({ x: pa.x - ux * push, y: pa.y - uy * push });
+        b.position({ x: pb.x + ux * push, y: pb.y + uy * push });
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+}
+
+function runTopicLayout(cy: Core) {
+  const eles = cy.nodes('[kind = "node"]').union(cy.edges('[kind = "edge"]'));
+  cy.layout({
+    ...COSE_LAYOUT,
+    eles,
+  } as cytoscape.LayoutOptions).run();
+  separateOverlappingNodes(cy);
+  cy.fit(eles, COSE_LAYOUT.padding);
+}
+
 /** Place portal stubs around their local node; layout ignores these. */
 function placeBridges(cy: Core, bridges: GraphBridge[]) {
   const byLocal = new Map<number, GraphBridge[]>();
@@ -258,17 +320,7 @@ function GraphPageInner() {
     const cy = cyRef.current;
     if (!cy || topicId == null) return;
     clearSavedLayout(topicId);
-    const eles = cy
-      .nodes('[kind = "node"]')
-      .union(cy.edges('[kind = "edge"]'));
-    cy.layout({
-      name: "cose",
-      eles,
-      animate: false,
-      fit: true,
-      padding: 30,
-      nodeRepulsion: 9000,
-    } as cytoscape.LayoutOptions).run();
+    runTopicLayout(cy);
     if (bridgesRef.current.length) placeBridges(cy, bridgesRef.current);
     saveLayout(topicId, cy, nodeIdsRef.current);
   }
@@ -459,9 +511,15 @@ function GraphPageInner() {
         ],
         layout: reuseLayout
           ? { name: "preset", fit: true, padding: 30 }
-          : { name: "cose", animate: false, padding: 30, nodeRepulsion: 9000 },
+          : { ...COSE_LAYOUT },
         wheelSensitivity: 2.5,
       });
+
+      // cose alone still stacks nodes on dense topics — separate, then fit.
+      if (!reuseLayout) {
+        separateOverlappingNodes(cy);
+        cy.fit(cy.nodes('[kind = "node"]').union(cy.edges('[kind = "edge"]')), 30);
+      }
 
       // Portal stubs sit outside the layout; position relative to local nodes.
       if (data.bridges.length > 0) {

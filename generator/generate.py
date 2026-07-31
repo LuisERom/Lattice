@@ -26,7 +26,7 @@ from pipeline.items import run_items
 from pipeline.procedures import run_procedures
 from pipeline.scaffold import run_scaffold
 from pipeline.scope import run_scope_interview, scope_from_args
-from pipeline.stream import stream_write
+from pipeline.stream import reset_stream_slug, set_stream_slug, stream_write
 
 PHASES = [
     "0_scope",
@@ -117,6 +117,7 @@ def main() -> int:
         print(f"Resume mode enabled for slug '{slug}'.")
 
     artifacts: dict[str, dict[str, Any]] = {}
+    stream_slug_token = set_stream_slug(slug)
 
     try:
         return _run_phases(subject, slug, artifacts, args, from_idx)
@@ -129,6 +130,8 @@ def main() -> int:
         stream_write(slug, {"type": "error", "message": str(exc)})
         stream_write(slug, {"type": "done"})
         return 2
+    finally:
+        reset_stream_slug(stream_slug_token)
 
 
 def _run_phases(
