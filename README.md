@@ -40,6 +40,7 @@ Pages: Dashboard (`/`), Graph (`/graph`), Review (`/review`), What to learn next
 | `npm run db:init` | Create the database and seed default settings |
 | `npm run db:reset` | Delete and recreate the database |
 | `npm run import [-- file.json]` | Import a contract JSON (default seed) |
+| `npm run verify:m7` | Verify selective grounding/source round-trip |
 | `npm run dev` / `build` / `start` | Next.js dev / production build / serve |
 | `npm test` | Unit tests (derived params + mastery math) |
 
@@ -56,6 +57,7 @@ dependencies). It now follows the staged pipeline from `04-generation-pipeline.m
 - `B_concepts` per-section enumeration (parallel) + saturation/critic loop
 - `C_nodes` dedup/merge via embeddings
 - `D_detailed` node detailing + auditor
+- `D2_ground` selective grounding (sources for risky claims only)
 - `E_edges` intra + cross-section edge construction + critic
 - `F_procedures` ordered compositions
 - `G_items` per-item question generation (parallel)
@@ -105,6 +107,9 @@ Config env vars:
 - `VOYAGE_API_KEY` (required for embeddings in phases C/E2)
 - `VOYAGE_BASE_URL` (default `https://api.voyageai.com/v1`)
 - `VOYAGE_MODEL` (default `voyage-3-lite`)
+- `TAVILY_API_KEY` (optional, enables web grounding in D2)
+- `OPENALEX_MAILTO` (optional polite identifier for OpenAlex scholarly search)
+- `LATTICE_GROUND_INCLUDE_DOMAINS` (optional comma-separated preferred domains for D2)
 - `LATTICE_FAKE_LLM=1` (optional offline mock harness for pipeline/resume testing)
 
 ## Project layout

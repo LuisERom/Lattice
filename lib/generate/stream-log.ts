@@ -6,6 +6,7 @@ export const GENERATION_PHASES = [
   "B_concepts",
   "C_nodes",
   "D_detailed",
+  "D2_ground",
   "E_edges",
   "F_procedures",
   "G_items",
@@ -53,6 +54,12 @@ export function formatStreamEvent(event: StreamEvent): string | null {
   }
   if (event.type === "procedures" && typeof event.count === "number") {
     return `procedures: ${event.count} members`;
+  }
+  if (event.type === "grounding_node" && typeof event.ref === "string") {
+    const verification =
+      typeof event.verification === "string" ? event.verification : "unverified";
+    const count = typeof event.sources === "number" ? event.sources : 0;
+    return `grounding: ${event.ref} -> ${verification} (${count} source${count === 1 ? "" : "s"})`;
   }
   if (event.type === "audit" && typeof event.errors === "number") {
     return `audit: ${event.errors} errors`;

@@ -110,6 +110,28 @@ export default function DashboardPage() {
           </div>
         </dl>
       </section>
+
+      <section className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6">
+        <h2 className="text-sm font-semibold">Grounding</h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Grounding is selective: stable textbook nodes can stay unverified, while
+          sensitive claims should carry explicit sources.
+        </p>
+        <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
+          <div>
+            <dt className="text-xs uppercase text-[var(--muted)]">Sensitive nodes</dt>
+            <dd className="mt-0.5">{data.grounding.sensitive}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase text-[var(--muted)]">Grounded nodes</dt>
+            <dd className="mt-0.5">{data.grounding.grounded}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase text-[var(--muted)]">Sensitive unverified</dt>
+            <dd className="mt-0.5">{data.grounding.sensitiveUnverified}</dd>
+          </div>
+        </dl>
+      </section>
     </div>
   );
 }

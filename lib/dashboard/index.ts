@@ -13,6 +13,11 @@ export interface DashboardData {
     nodeCount: number;
     gapSearch: string; // honest status string; gap-search is deferred in v1
   };
+  grounding: {
+    sensitive: number;
+    grounded: number;
+    sensitiveUnverified: number;
+  };
 }
 
 export function getDashboard(
@@ -27,6 +32,7 @@ export function getDashboard(
       counts: { locked: 0, learning: 0, known: 0, mastered: 0 },
       itemTotal: 0,
       coverage: { scopeLevel: "-", nodeCount: 0, gapSearch: "not run" },
+      grounding: { sensitive: 0, grounded: 0, sensitiveUnverified: 0 },
     };
   }
 
@@ -39,6 +45,17 @@ export function getDashboard(
 
   const state = computeTopicState(topicId, db, now);
   const itemTotal = state.items.size;
+  const grounding = db
+    .prepare(
+      "SELECT " +
+        "SUM(CASE WHEN grounding_sensitive = 1 THEN 1 ELSE 0 END) AS sensitive, " +
+        "SUM(CASE WHEN verification = 'grounded' THEN 1 ELSE 0 END) AS grounded, " +
+        "SUM(CASE WHEN grounding_sensitive = 1 AND verification != 'grounded' THEN 1 ELSE 0 END) AS sensitive_unverified " +
+        "FROM nodes WHERE topic_id = ?"
+    )
+    .get(topicId) as
+    | { sensitive: number | null; grounded: number | null; sensitive_unverified: number | null }
+    | undefined;
 
   return {
     topic: { id: topic.id, name: topic.name, scopeLevel: topic.scope_level },
@@ -50,6 +67,11 @@ export function getDashboard(
       nodeCount,
       // Coverage is never a fake percentage (Doc 7.4). Gap-search is deferred.
       gapSearch: "not run",
+    },
+    grounding: {
+      sensitive: grounding?.sensitive ?? 0,
+      grounded: grounding?.grounded ?? 0,
+      sensitiveUnverified: grounding?.sensitive_unverified ?? 0,
     },
   };
 }

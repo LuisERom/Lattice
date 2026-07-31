@@ -57,6 +57,23 @@ export interface QuestionRow {
   created_at: string;
 }
 
+export interface SourceRow {
+  id: number;
+  url: string;
+  title: string;
+  publisher: string;
+  retrieved_at: string;
+  quote: string;
+  created_at: string;
+}
+
+export interface NodeSourceRow {
+  node_id: number;
+  source_id: number;
+  support: string;
+  created_at: string;
+}
+
 export interface MethodProgressRow {
   item_id: number;
   method: Method;

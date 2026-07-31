@@ -121,7 +121,7 @@ function listRuns(): GenerationRunSummary[] {
     const bTs = b.startedAt ? Date.parse(b.startedAt) : Date.parse(b.updatedAt);
     return bTs - aTs;
   });
-  return runs;
+  return runs.slice(0, 20);
 }
 
 function loadRunDetail(slug: string): {

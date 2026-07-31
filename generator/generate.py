@@ -21,6 +21,7 @@ from pipeline.dedup import run_dedup
 from pipeline.detail import run_detailing
 from pipeline.edges import run_edges
 from pipeline.enumerate_concepts import run_enumeration
+from pipeline.grounding import run_grounding
 from pipeline.items import run_items
 from pipeline.procedures import run_procedures
 from pipeline.scaffold import run_scaffold
@@ -33,6 +34,7 @@ PHASES = [
     "B_concepts",
     "C_nodes",
     "D_detailed",
+    "D2_ground",
     "E_edges",
     "F_procedures",
     "G_items",
@@ -48,6 +50,7 @@ def _dry_run_prompts(subject: str, scope_level: str, scope_description: str | No
     print(" - B_concepts: per-section concept/procedure enumeration with per-section critic + saturation.")
     print(" - C_nodes: embed candidates, cluster by cosine, adjudicate ambiguous near-duplicates.")
     print(" - D_detailed: detail node descriptions/type/grounding/confidence + auditor flags.")
+    print(" - D2_ground: selectively source risky claims, set verification, emit citations.")
     print(" - E_edges: intra-section + cross-section edge generation with missing/wrong critic.")
     print(" - F_procedures: ensure ordered part_of composition structure for procedures.")
     print(" - G_items: generate atomic/connection/composition items and per-method questions.")
@@ -207,14 +210,26 @@ def _run_phases(
     else:
         artifacts[phase] = _load_or_fail(slug, phase)
 
+    # D2_ground
+    phase = "D2_ground"
+    if _should_run_phase(slug, phase, 5, from_idx):
+        stream_write(slug, {"type": "phase", "name": phase})
+        payload = run_grounding(
+            artifacts["0_scope"], artifacts["D_detailed"], model=args.model, slug=slug
+        )
+        write_phase(slug, phase, payload)
+        artifacts[phase] = payload
+    else:
+        artifacts[phase] = _load_or_fail(slug, phase)
+
     # E_edges
     phase = "E_edges"
-    if _should_run_phase(slug, phase, 5, from_idx):
+    if _should_run_phase(slug, phase, 6, from_idx):
         stream_write(slug, {"type": "phase", "name": phase})
         payload = run_edges(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
-            artifacts["D_detailed"],
+            artifacts["D2_ground"],
             model=args.model,
             slug=slug,
         )
@@ -225,12 +240,12 @@ def _run_phases(
 
     # F_procedures
     phase = "F_procedures"
-    if _should_run_phase(slug, phase, 6, from_idx):
+    if _should_run_phase(slug, phase, 7, from_idx):
         stream_write(slug, {"type": "phase", "name": phase})
         payload = run_procedures(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
-            artifacts["D_detailed"],
+            artifacts["D2_ground"],
             artifacts["E_edges"],
             model=args.model,
             slug=slug,
@@ -242,11 +257,11 @@ def _run_phases(
 
     # G_items
     phase = "G_items"
-    if _should_run_phase(slug, phase, 7, from_idx):
+    if _should_run_phase(slug, phase, 8, from_idx):
         stream_write(slug, {"type": "phase", "name": phase})
         payload = run_items(
             artifacts["0_scope"],
-            artifacts["D_detailed"],
+            artifacts["D2_ground"],
             artifacts["F_procedures"],
             model_fast=args.fast_model,
             concurrency=args.concurrency,
@@ -260,17 +275,18 @@ def _run_phases(
     # H_audit + assemble
     contract_doc = build_contract(
         artifacts["0_scope"],
-        artifacts["D_detailed"],
+        artifacts["D2_ground"],
         artifacts["F_procedures"],
         artifacts["G_items"],
     )
-    if _should_run_phase(slug, "H_audit", 8, from_idx):
+    if _should_run_phase(slug, "H_audit", 9, from_idx):
         stream_write(slug, {"type": "phase", "name": "H_audit"})
         audit_payload = run_global_audit(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
             contract_doc,
-            detail_flags=list(artifacts["D_detailed"].get("flags") or []),
+            detail_flags=list(artifacts["D2_ground"].get("flags") or []),
+            grounding_flags=list(artifacts["D2_ground"].get("grounding_flags") or []),
             model=args.model,
             slug=slug,
         )

@@ -13,6 +13,7 @@ def run_global_audit(
     scaffold_payload: dict[str, Any],
     contract_doc: dict[str, Any],
     detail_flags: list[dict[str, Any]],
+    grounding_flags: list[dict[str, Any]] | None,
     model: str,
     sample_sections: int = 3,
     slug: str | None = None,
@@ -42,6 +43,11 @@ def run_global_audit(
                 temperature=0.1,
             )
             critics.append({"section_ref": s.get("ref"), "missing": list(c.get("missing") or [])})
-    payload = {"errors": errors, "detail_flags": detail_flags, "completeness_flags": critics}
+    payload = {
+        "errors": errors,
+        "detail_flags": detail_flags,
+        "grounding_flags": list(grounding_flags or []),
+        "completeness_flags": critics,
+    }
     stream_write(slug, {"type": "audit", "errors": len(errors)})
     return payload

@@ -20,8 +20,10 @@ proposal contradicts them, the invariants win.
 7. Generation lives only in the Python script and only emits JSON. The runtime
    app never calls an LLM in v1.
 8. v1 is ONE topic. Do not build appending, cross-topic edges, integration
-   items, gap-search, embeddings, grounding, or AI grading. Leave schema room,
-   write no code.
+   items, gap-search, embeddings, or AI grading in strict-v1 work. Leave schema
+   room, write no code for those paths.
+   Carve-out: selective grounding/source attachment is allowed as an additive
+   post-v1 generation milestone, while the runtime daily loop remains LLM-free.
 9. Self-grade only. No auto-grading in v1.
 10. Thresholds and mastery weighting are read from settings at runtime, never
     hardcoded.

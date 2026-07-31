@@ -60,7 +60,8 @@ Paste this into the Cursor rules file.
 - Store the user's typed answer on every review, even when empty, so AI grading can be added later.
 - `difficulty` and `centrality` are computed by the app after import from graph structure. Never trust them from the generator.
 - Generation lives only in the Python script and only emits JSON. The runtime app never calls an LLM in v1 except a future "check me" path, which is not built yet.
-- v1 is one topic. Do not build appending, cross-topic edges, integration items, gap-search, embeddings, grounding, or AI grading. Leave the schema room for them, write none of the code.
+- v1 is one topic. Do not build appending, cross-topic edges, integration items, gap-search, embeddings, or AI grading. Leave the schema room for them, write none of the code in strict-v1 work.
+- Carve-out: selective grounding is allowed as a post-v1 additive milestone (generator-side source attachment with runtime source display, still no daily-loop LLM).
 - Self-grade only. No auto-grading in v1.
 - Thresholds (known and mastered R cutoffs, method counts) and the mastery weighting are read from settings at runtime, never hardcoded.
 
@@ -132,6 +133,10 @@ This is the largest milestone and is itself staged. Build it per Doc 4, checkpoi
 - **M6.4 Items and audit:** per-unit question generation for the three v1 item kinds, then the global audit and confidence report. Verify: the emitted JSON passes the importer's validate, and importing it satisfies Doc 2 criterion 1.
 
 End-to-end verify: generating a real topic (Django REST) through the full pipeline and importing it makes the whole loop (review, see mastery move) work on real data. v1 generation covers atomic, connection, and composition items only. Integration items stay deferred.
+
+### M7, selective grounding and sources (post-v1 additive)
+Tasks: add a selective grounding pass after detailing that only targets risky claims (`grounding_sensitive`, low confidence, or auditor-flagged). Retrieve small evidence snippets from authoritative sources, attach citations, set verification to `grounded` only when supported, and keep unresolved claims explicitly `unverified`. Persist source links in SQLite and show them in node inspection.
+Verify: stable textbook nodes trigger no search calls; version-sensitive nodes either carry a real citation or a `needs_source` flag; import round-trips sources; no full-document ingestion is fed to the LLM.
 
 ---
 

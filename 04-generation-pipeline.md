@@ -4,7 +4,7 @@
 
 How a topic's map is generated. This replaces the single-call generation step, because a single prompt cannot produce a complete, correct, connected map. Generation is a staged pipeline of small focused passes. This is the internal design of the separate Python generator from Doc 1, Section 9.2. It emits the JSON contract from Doc 3, Section 4, and never touches the database.
 
-This is the north-star design for generation. v1 builds the subset called out in Section 17: atomic, connection, and composition items, no integration items, no grounding.
+This is the north-star design for generation. v1 builds the subset called out in Section 17: atomic, connection, and composition items, no integration items. Selective grounding is an additive post-v1 pass that can be enabled without changing the runtime review loop.
 
 ---
 
@@ -39,6 +39,9 @@ subject
   |
   v
 [D] detail nodes ........... descriptions + flags       (auditor)
+  |
+  v
+[D2] grounding ............. selective sources + verification
   |
   v
 [E] edges .................. intra + cross-section       (missing/wrong critic, embeddings)
@@ -106,7 +109,18 @@ Each phase writes a checkpoint to disk, so the pipeline is resumable and inspect
 
 ---
 
-## 8. Phase E: Edges
+## 8. Phase D2: Selective grounding
+
+- **Goal:** attach checkable sources only to risky claims; keep stable textbook nodes ungrounded.
+- **Selection policy:** run on nodes marked `grounding_sensitive`, low-confidence nodes, or medium/high auditor flags.
+- **Context in:** one node, topic scope, and a small set of retrieved snippets/chunks from authoritative sources.
+- **Provider policy:** primary web/docs search with query-focused extraction; optional scholarly metadata channel for research-frontier claims.
+- **Output:** per-node source links, short support quotes, and `verification` (`grounded` only when at least one source directly supports the claim).
+- **Hard budget:** cap URLs and snippet count per node; never feed full PDFs/books to the adjudicator.
+
+---
+
+## 9. Phase E: Edges
 
 - **Goal:** sparse, correct, typed edges.
 - **E1, intra-section:** per section, given only that section's nodes, propose prerequisite_of, part_of, used_in, and the rest.
@@ -119,7 +133,7 @@ This is the part a single prompt served worst. It gets its own phase precisely b
 
 ---
 
-## 9. Phase F: Procedures
+## 10. Phase F: Procedures
 
 - **Goal:** well-formed procedures and their composition items.
 - **Context in:** each procedure node plus its candidate member concepts.
@@ -127,7 +141,7 @@ This is the part a single prompt served worst. It gets its own phase precisely b
 
 ---
 
-## 10. Phase G: Items and questions (parallel)
+## 11. Phase G: Items and questions (parallel)
 
 - **Goal:** items and per-method questions.
 - **Mapping:** each atomic node becomes an atomic item, each tested edge a connection item, each procedure a composition item.
@@ -138,7 +152,7 @@ This is the part a single prompt served worst. It gets its own phase precisely b
 
 ---
 
-## 11. Phase H: Global audit and review report
+## 12. Phase H: Global audit and review report
 
 - **Structural checks:** mirror the importer's validate, plus no prerequisite cycles, no orphan nodes, every item has its required number of methods.
 - **Completeness critics:** run on a sample of sections.
@@ -147,24 +161,25 @@ This is the part a single prompt served worst. It gets its own phase precisely b
 
 ---
 
-## 12. Loops and caps (consolidated)
+## 13. Loops and caps (consolidated)
 
 - Scope interview: capped by max-questions (default 8, typical 3 to 6).
 - Scaffold gap critic: cap around 3 iterations.
 - Section enumeration: stop at the saturation threshold (consecutive passes adding under a small percent of new concepts), with a hard per-section cap.
 - Edge critic: stop when the missing-links critic returns empty, with a hard cap.
+- Grounding: cap candidates per node and sources per node; unresolved nodes remain `unverified`.
 
 Every loop has a hard cap so a runaway pass cannot spend without bound.
 
 ---
 
-## 13. Embeddings in the generator
+## 14. Embeddings in the generator
 
 Used in Phase C (dedup) and Phase E2 (edge candidates). They live entirely inside the generator. The runtime app's embedding field stays empty in v1, so this does not contradict Doc 1's deferral. The generator is separate, so it can use embeddings internally now. Source is Voyage API (consistent with GnoRA, trivial volume) or a local model, decided at build time.
 
 ---
 
-## 14. Models, temperature, and cost
+## 15. Models, temperature, and cost
 
 - Use the strongest available model for the reasoning-heavy phases: scaffold, dedup adjudication, edges, and all critics.
 - A faster, cheaper model is allowed for the high-volume per-item question generation in Phase G.
@@ -173,22 +188,23 @@ Used in Phase C (dedup) and Phase E2 (edge candidates). They live entirely insid
 
 ---
 
-## 15. Intermediate artifacts and resumability
+## 16. Intermediate artifacts and resumability
 
 Each phase writes to `generator/artifacts/<slug>/<phase>.json`. The orchestrator can resume from the last completed phase, which matters for a long pipeline. Final assembly stitches the canonical nodes, edges, items, and questions into the Doc 3 contract and writes `data/generated/<slug>.json`.
 
 ---
 
-## 16. Output
+## 17. Output
 
 The same JSON contract as Doc 3, Section 4, consumed by the unchanged importer (`npm run import`). Difficulty and centrality are left for the importer to compute. Alongside it, a review report lists the flagged nodes and edges for your eyes before import.
 
 ---
 
-## 17. Generation invariants
+## 18. Generation invariants
 
 - JSON only. The generator never touches the database.
 - Difficulty and centrality are computed by the app on import, never trusted from the generator.
 - All nodes start `unverified`.
-- v1 emits atomic, connection, and composition items only. Integration items and grounding are deferred, but the pipeline is designed to accommodate them as additional passes later.
+- v1 emits atomic, connection, and composition items only. Integration items stay deferred.
+- Grounding is selective: only risky claims are sourced, and unsupported claims remain explicitly unverified.
 - Every loop is capped.

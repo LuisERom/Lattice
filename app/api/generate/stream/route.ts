@@ -5,6 +5,7 @@ import {
   readSync,
   statSync,
 } from "node:fs";
+import path from "node:path";
 import { type NextRequest } from "next/server";
 import { artifactRunDir } from "@/lib/paths";
 

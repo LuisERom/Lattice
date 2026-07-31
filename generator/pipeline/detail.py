@@ -48,6 +48,10 @@ def run_detailing(
                     "content": (
                         "PHASE_D_DETAIL\n"
                         "Detail these nodes with precise descriptions, type and sensitivity.\n"
+                        "Set grounding_sensitive=true when claims are version-specific, recency-sensitive, "
+                        "research-frontier/contested, niche vendor quirks, or exact numbers/limits.\n"
+                        "Set grounding_sensitive=false for stable textbook-style facts.\n"
+                        "Confidence should reflect factual certainty and granularity fit (0..1).\n"
                         f"SCOPE: {scope}\nNODES: {batch}\n"
                         'Return {"nodes":[{"ref":"n1","description":"...","type":"concept|procedure","grounding_sensitive":false,"confidence":0.0-1.0}]}.'
                     ),
@@ -91,6 +95,8 @@ def run_detailing(
                     "content": (
                         "PHASE_D_AUDITOR\n"
                         "Audit detailed nodes for uncertainty or likely errors.\n"
+                        "Escalate severity to medium/high for over-claims, likely factual errors, "
+                        "or grounding-sensitive claims that look unsupported.\n"
                         f"SCOPE: {scope}\nNODES: {batch}\n"
                         'Return {"flags":[{"ref":"n1","reason":"...","severity":"low|medium|high"}]}.'
                     ),
