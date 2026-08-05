@@ -43,7 +43,8 @@ def run_scaffold(
         "role": "user",
         "content": (
             "PHASE_A_SCAFFOLD\n"
-            "Create a hierarchical section scaffold inside the frozen scope.\n"
+            "Create a hierarchical scaffold of CAPABILITY / LEARNING-GOAL areas inside the frozen scope.\n"
+            "Sections name what the learner should be able to do or master — not every atomic concept.\n"
             f"SCOPE NAME: {scope['name']}\n"
             f"SCOPE LEVEL: {scope['scope_level']}\n"
             f"SCOPE DESCRIPTION: {scope['scope_description']}\n"

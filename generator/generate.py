@@ -2,8 +2,8 @@
 """Doc 4 staged generation pipeline orchestrator.
 
 Generates a topic map through checkpointed phases:
-0 scope, A scaffold, B enumerate, C dedup, D detail, E edges, F procedures,
-G items, H global audit. Outputs the Doc 3 contract JSON + review report.
+0 scope, A scaffold, B seed goals, C prereq expand, D detail, E lateral edges,
+F procedures, G items, H global audit. Outputs the Doc 3 contract JSON + review report.
 """
 from __future__ import annotations
 
@@ -17,21 +17,22 @@ from pipeline.artifacts import phase_done, read_phase, write_phase
 from pipeline.assemble import build_contract, write_generated_output
 from pipeline.audit import run_global_audit
 from pipeline.common import VALID_LEVELS, ask, generated_dir, repo_root, slugify
-from pipeline.dedup import run_dedup
+from pipeline.connectivity import prune_unlinked_concepts
 from pipeline.detail import run_detailing
 from pipeline.edges import run_edges
-from pipeline.enumerate_concepts import run_enumeration
+from pipeline.expand import run_expand
 from pipeline.items import run_items
 from pipeline.procedures import run_procedures
 from pipeline.scaffold import run_scaffold
 from pipeline.scope import run_scope_interview, scope_from_args
-from pipeline.stream import stream_write
+from pipeline.seeds import run_seeds
+from pipeline.stream import set_stream_slug, stream_step, stream_write
 
 PHASES = [
     "0_scope",
     "A_scaffold",
-    "B_concepts",
-    "C_nodes",
+    "B_seeds",
+    "C_expand",
     "D_detailed",
     "E_edges",
     "F_procedures",
@@ -44,14 +45,15 @@ MAX_INTERVIEW_QUESTIONS_DEFAULT = 8
 def _dry_run_prompts(subject: str, scope_level: str, scope_description: str | None) -> None:
     print("\nDoc 4 dry-run prompt map (no API calls):")
     print(" - 0_scope: AI interview returning frozen scope + include/exclude + tentative outline.")
-    print(" - A_scaffold: expand scope+outline into section tree with in/out lines, gap critic.")
-    print(" - B_concepts: per-section concept/procedure enumeration with per-section critic + saturation.")
-    print(" - C_nodes: embed candidates, cluster by cosine, adjudicate ambiguous near-duplicates.")
+    print(" - A_scaffold: capability / learning-goal areas with in/out lines, gap critic.")
+    print(" - B_seeds: small per-section goal seeds (procedures + capstones), not a concept dump.")
+    print(" - C_expand: BFS prerequisite expansion + embed-merge (nodes + prerequisite_of edges).")
     print(" - D_detailed: detail node descriptions/type/grounding/confidence + auditor flags.")
-    print(" - E_edges: intra-section + cross-section edge generation with missing/wrong critic.")
+    print(" - E_edges: keep prereq spine; add lateral edges; critic + coverage (no isolates).")
     print(" - F_procedures: ensure ordered part_of composition structure for procedures.")
+    print(" - (prune): drop concept nodes that still have zero edges after F.")
     print(" - G_items: generate atomic/connection/composition items and per-method questions.")
-    print(" - H_audit: structural validation, cycle/orphan checks, sampled completeness critics.")
+    print(" - H_audit: structural validation, cycle/orphan(no-edges) checks, sampled critics.")
     print("\nSample scope seed:")
     print(f" subject={subject!r} level={scope_level!r} description={scope_description!r}")
 
@@ -66,7 +68,8 @@ def _load_or_fail(slug: str, phase: str) -> dict[str, Any]:
     if not phase_done(slug, phase):
         raise RuntimeError(
             f"Missing required checkpoint artifacts/{slug}/{phase}.json. "
-            "Run prior phases first or remove --from-phase."
+            "Run prior phases first or remove --from-phase. "
+            "Note: older B_concepts/C_nodes checkpoints are incompatible — use B_seeds/C_expand."
         )
     return read_phase(slug, phase)
 
@@ -114,13 +117,13 @@ def main() -> int:
         print(f"Resume mode enabled for slug '{slug}'.")
 
     artifacts: dict[str, dict[str, Any]] = {}
+    set_stream_slug(slug)
 
     try:
         return _run_phases(subject, slug, artifacts, args, from_idx)
     except Exception as exc:
         import traceback as _tb
         tb = _tb.format_exc()
-        # Use ascii-safe print so Unicode arrows in tracebacks can't crash the handler on Windows.
         safe_msg = f"\n[FATAL] {exc}\n{tb}".encode("ascii", "replace").decode("ascii")
         print(safe_msg, flush=True)
         stream_write(slug, {"type": "error", "message": str(exc)})
@@ -135,10 +138,30 @@ def _run_phases(
     args: Any,
     from_idx: int | None,
 ) -> int:
+    PHASE_INTENTS = {
+        "0_scope": "Freeze the topic boundary (or load scripted scope).",
+        "A_scaffold": "Draft capability/goal areas, then run a gap critic.",
+        "B_seeds": "Propose a small set of learning-goal seeds per section.",
+        "C_expand": "Grow the graph by asking prerequisites for each seed (BFS).",
+        "D_detailed": "Write precise descriptions and audit uncertain nodes.",
+        "E_edges": "Keep the prereq spine; add lateral edges; cover isolates.",
+        "F_procedures": "Fill ordered part_of steps for each procedure.",
+        "G_items": "Generate review items and per-method questions.",
+        "H_audit": "Validate structure and sample completeness critics.",
+    }
+
+    def _begin_phase(name: str) -> None:
+        stream_write(slug, {"type": "phase", "name": name})
+        stream_step(
+            name,
+            PHASE_INTENTS.get(name, ""),
+            kind="phase_start",
+        )
+
     # 0_scope
     phase = "0_scope"
     if _should_run_phase(slug, phase, 0, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
+        _begin_phase(phase)
         if args.no_interview:
             payload = scope_from_args(subject, args.scope_level, args.scope_description)
             if not args.yes:
@@ -156,18 +179,18 @@ def _run_phases(
     # A_scaffold
     phase = "A_scaffold"
     if _should_run_phase(slug, phase, 1, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
+        _begin_phase(phase)
         payload = run_scaffold(artifacts["0_scope"], args.model, slug=slug)
         write_phase(slug, phase, payload)
         artifacts[phase] = payload
     else:
         artifacts[phase] = _load_or_fail(slug, phase)
 
-    # B_concepts
-    phase = "B_concepts"
+    # B_seeds — small learning goals per section
+    phase = "B_seeds"
     if _should_run_phase(slug, phase, 2, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
-        payload = run_enumeration(
+        _begin_phase(phase)
+        payload = run_seeds(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
             model=args.model,
@@ -176,47 +199,53 @@ def _run_phases(
         )
         write_phase(slug, phase, payload)
         artifacts[phase] = payload
+        print(f"  seeds: {len(payload.get('seeds') or [])}")
     else:
         artifacts[phase] = _load_or_fail(slug, phase)
 
-    # C_nodes
-    phase = "C_nodes"
+    # C_expand — prerequisite BFS grows nodes + prerequisite_of edges
+    phase = "C_expand"
     if _should_run_phase(slug, phase, 3, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
-        payload = run_dedup(
+        _begin_phase(phase)
+        payload = run_expand(
             artifacts["0_scope"],
-            artifacts["A_scaffold"],
-            artifacts["B_concepts"],
+            artifacts["B_seeds"],
             model=args.model,
             slug=slug,
         )
         write_phase(slug, phase, payload)
         artifacts[phase] = payload
+        stats = payload.get("stats") or {}
+        print(
+            f"  expand: {stats.get('node_count', '?')} nodes, "
+            f"{stats.get('prereq_edges', '?')} prereq edges"
+        )
     else:
         artifacts[phase] = _load_or_fail(slug, phase)
 
     # D_detailed
     phase = "D_detailed"
     if _should_run_phase(slug, phase, 4, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
+        _begin_phase(phase)
         payload = run_detailing(
-            artifacts["0_scope"], artifacts["C_nodes"], model=args.model, slug=slug
+            artifacts["0_scope"], artifacts["C_expand"], model=args.model, slug=slug
         )
         write_phase(slug, phase, payload)
         artifacts[phase] = payload
     else:
         artifacts[phase] = _load_or_fail(slug, phase)
 
-    # E_edges
+    # E_edges — lateral links on top of the prereq spine
     phase = "E_edges"
     if _should_run_phase(slug, phase, 5, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
+        _begin_phase(phase)
         payload = run_edges(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
             artifacts["D_detailed"],
             model=args.model,
             slug=slug,
+            prior_edges_payload=artifacts["C_expand"],
         )
         write_phase(slug, phase, payload)
         artifacts[phase] = payload
@@ -226,7 +255,7 @@ def _run_phases(
     # F_procedures
     phase = "F_procedures"
     if _should_run_phase(slug, phase, 6, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
+        _begin_phase(phase)
         payload = run_procedures(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
@@ -240,10 +269,29 @@ def _run_phases(
     else:
         artifacts[phase] = _load_or_fail(slug, phase)
 
+    # Safety net: drop concepts that still have no edges
+    pruned = prune_unlinked_concepts(
+        list(artifacts["D_detailed"].get("nodes") or []),
+        list(artifacts["F_procedures"].get("edges") or []),
+        dict(artifacts["F_procedures"].get("procedure_members") or {}),
+    )
+    removed = list(pruned.get("removed") or [])
+    if removed:
+        print(f"Pruned {len(removed)} unlinked concept(s) after procedures.")
+        stream_write(slug, {"type": "prune_unlinked", "removed": removed})
+        artifacts["D_detailed"] = {**artifacts["D_detailed"], "nodes": pruned["nodes"]}
+        artifacts["F_procedures"] = {
+            **artifacts["F_procedures"],
+            "edges": pruned["edges"],
+            "procedure_members": pruned["procedure_members"],
+            "pruned_unlinked": removed,
+        }
+        write_phase(slug, "F_procedures", artifacts["F_procedures"])
+
     # G_items
     phase = "G_items"
     if _should_run_phase(slug, phase, 7, from_idx):
-        stream_write(slug, {"type": "phase", "name": phase})
+        _begin_phase(phase)
         payload = run_items(
             artifacts["0_scope"],
             artifacts["D_detailed"],
@@ -264,8 +312,9 @@ def _run_phases(
         artifacts["F_procedures"],
         artifacts["G_items"],
     )
+    pruned_unlinked = list(contract_doc.pop("_pruned_unlinked", None) or removed)
     if _should_run_phase(slug, "H_audit", 8, from_idx):
-        stream_write(slug, {"type": "phase", "name": "H_audit"})
+        _begin_phase("H_audit")
         audit_payload = run_global_audit(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
@@ -274,9 +323,11 @@ def _run_phases(
             model=args.model,
             slug=slug,
         )
+        audit_payload["pruned_unlinked"] = pruned_unlinked
         write_phase(slug, "H_audit", audit_payload)
     else:
         audit_payload = _load_or_fail(slug, "H_audit")
+        audit_payload = {**audit_payload, "pruned_unlinked": pruned_unlinked}
 
     root = repo_root()
     out_dir = generated_dir()
@@ -286,7 +337,11 @@ def _run_phases(
     write_generated_output(contract_doc, out_path, review_path, audit_payload)
 
     print(f"\nWrote {out_path}")
-    print(f"  nodes: {len(contract_doc.get('nodes', []))}  edges: {len(contract_doc.get('edges', []))}  items: {len(contract_doc.get('items', []))}")
+    print(
+        f"  nodes: {len(contract_doc.get('nodes', []))}  "
+        f"edges: {len(contract_doc.get('edges', []))}  "
+        f"items: {len(contract_doc.get('items', []))}"
+    )
     print(f"  generated: {_dt.datetime.now().isoformat(timespec='seconds')}")
     print(f"  review: {review_path}")
 

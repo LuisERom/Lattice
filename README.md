@@ -52,18 +52,21 @@ The generator is a standalone Python script (standard library only; no pip
 dependencies). It now follows the staged pipeline from `04-generation-pipeline.md`:
 
 - `0_scope` interview -> frozen scope + tentative outline
-- `A_scaffold` section tree + gap critic
-- `B_concepts` per-section enumeration (parallel) + saturation/critic loop
-- `C_nodes` dedup/merge via embeddings
+- `A_scaffold` capability / learning-goal areas + gap critic
+- `B_seeds` small per-section goal seeds (procedures + capstones)
+- `C_expand` prerequisite BFS (nodes + `prerequisite_of`, embed-merge)
 - `D_detailed` node detailing + auditor
-- `E_edges` intra + cross-section edge construction + critic
+- `E_edges` lateral edges on the prereq spine + critic/coverage
 - `F_procedures` ordered compositions
 - `G_items` per-item question generation (parallel)
 - `H_audit` structural/completeness checks + review report
 
-Each phase checkpoints to `generator/artifacts/<slug>/<phase>.json`, so runs are
-resumable and inspectable. Final output is still the same import contract in
-`data/generated/<slug>.json`, plus `data/generated/<slug>.review.md`.
+Each phase checkpoints under `LATTICE_DATA_DIR/artifacts/<slug>/` (or
+`generator/artifacts/`), so runs are resumable. Final output is the import
+contract in `generated/<slug>.json`, plus `<slug>.review.md`.
+
+Older `B_concepts` / `C_nodes` checkpoints are from the previous enumerate-then-link
+pipeline and are not compatible — start a new slug or `--from-phase B_seeds`.
 
 A virtualenv isn't required (zero third-party deps) but is recommended hygiene:
 
@@ -79,10 +82,10 @@ python generator/generate.py --dry-run --subject "Celery"
 
 # Real generation (interactive scope interview):
 setx OPENAI_API_KEY "sk-..."      # or $env:OPENAI_API_KEY in PowerShell
-setx VOYAGE_API_KEY "voyage-..."  # embeddings used in C/E2
+setx VOYAGE_API_KEY "voyage-..."  # embeddings used in C_expand / E
 python generator/generate.py      # interactive
-# -> writes data/generated/<slug>.json and <slug>.review.md, then:
-npm run import -- data/generated/<slug>.json
+# -> writes generated/<slug>.json and <slug>.review.md, then:
+npm run import -- path/to/generated/<slug>.json
 ```
 
 Useful flags:
@@ -93,7 +96,7 @@ python generator/generate.py --subject "Celery" --no-interview --scope-descripti
 
 # Resume/checkpoint behavior
 python generator/generate.py --subject "Celery" --slug "celery" --resume
-python generator/generate.py --subject "Celery" --slug "celery" --from-phase E_edges
+python generator/generate.py --subject "Celery" --slug "celery" --from-phase C_expand
 ```
 
 Config env vars:

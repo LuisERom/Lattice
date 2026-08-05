@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import type { GenerationRunSummary } from "@/lib/generate/history";
 import type { PhaseLogGroup } from "@/lib/generate/stream-log";
-import { GENERATION_PHASES } from "@/lib/generate/stream-log";
+import {
+  GENERATION_PHASES,
+  phaseLabel,
+  sortPhases,
+} from "@/lib/generate/stream-log";
 
 type RunDetail = {
   summary: GenerationRunSummary;
@@ -130,7 +134,11 @@ function RunCard({
 
           {!loading && !error && detail && (
             <div className="space-y-2">
-              {GENERATION_PHASES.map((phase) => {
+              {sortPhases([
+                ...GENERATION_PHASES,
+                ...summary.phasesCompleted,
+                ...detail.phases.map((p) => p.phase),
+              ]).map((phase) => {
                 const lines = phaseMap.get(phase) || [];
                 const completed = summary.phasesCompleted.includes(phase);
                 const isOpen = !!openPhases[phase];
@@ -147,7 +155,7 @@ function RunCard({
                       className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-[var(--surface-2)]"
                     >
                       <span className="text-[var(--muted)]">{isOpen ? "▼" : "▶"}</span>
-                      <span className="font-mono text-sky-300">{phase}</span>
+                      <span className="font-mono text-sky-300">{phaseLabel(phase)}</span>
                       <span className="text-[var(--muted)]">
                         {lines.length > 0 ? `${lines.length} events` : "no stream events"}
                       </span>

@@ -128,7 +128,7 @@ This is the largest milestone and is itself staged. Build it per Doc 4, checkpoi
 
 - **M6.1 Scope and scaffold:** the tightened scope interview (ending in an in/out list and a tentative outline), then the outline scaffold with its gap critic. Verify: the outline covers the boundary with no obvious missing area.
 - **M6.2 Concepts and dedup:** parallel per-section concept enumeration with saturation or gap critics, then global embedding-based dedup and merge into canonical nodes. Verify: a hand-check of one section shows no obvious missing concepts, and no duplicate nodes survive the merge.
-- **M6.3 Detailing and edges:** node detailing with the auditor flagging uncertain nodes, then intra-section and candidate-based cross-section edges with the missing-and-wrong-links critic, then procedures. Verify: edges are sparse and correct on a hand-check, and prerequisites form no cycles.
+- **M6.3 Expand, detail, lateral edges:** prerequisite BFS expansion (nodes + `prerequisite_of`), node detailing with auditor flags, then lateral edges (`used_in` / …) with critic, then procedures. Verify: the prereq spine is acyclic, and nodes are not an unconnected inventory.
 - **M6.4 Items and audit:** per-unit question generation for the three v1 item kinds, then the global audit and confidence report. Verify: the emitted JSON passes the importer's validate, and importing it satisfies Doc 2 criterion 1.
 
 End-to-end verify: generating a real topic (Django REST) through the full pipeline and importing it makes the whole loop (review, see mastery move) work on real data. v1 generation covers atomic, connection, and composition items only. Integration items stay deferred.

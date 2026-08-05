@@ -49,21 +49,75 @@ def _embed_batch(texts: list[str], key: str, model: str, base: str) -> list[list
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
+    import time
+
+    from .stream import stream_status
+
     load_dotenv()
+    n = len(texts)
+    model = os.environ.get("VOYAGE_MODEL", "voyage-3-large")
+    started = time.time()
+    stream_status(
+        {
+            "type": "status",
+            "state": "waiting_embed",
+            "label": "EMBEDDINGS",
+            "model": model,
+            "detail": f"Embedding {n} text(s)…",
+            "count": n,
+        }
+    )
+
     if fake_mode_enabled():
-        return [_fake_embedding(t) for t in texts]
+        vectors = [_fake_embedding(t) for t in texts]
+        ms = int((time.time() - started) * 1000)
+        stream_status(
+            {
+                "type": "status",
+                "state": "embed_done",
+                "label": "EMBEDDINGS",
+                "model": "fake",
+                "ms": ms,
+                "detail": f"Fake embeddings for {n} text(s) in {ms}ms",
+                "count": n,
+            }
+        )
+        return vectors
 
     key = os.environ.get("VOYAGE_API_KEY")
     if not key:
         raise RuntimeError(
             "VOYAGE_API_KEY missing. Set it in .env, or set LATTICE_FAKE_LLM=1 for offline tests."
         )
-    model = os.environ.get("VOYAGE_MODEL", "voyage-3-large")
     base = os.environ.get("VOYAGE_BASE_URL", "https://api.voyageai.com/v1").rstrip("/")
 
     vectors: list[list[float]] = []
-    for i in range(0, len(texts), _VOYAGE_BATCH):
+    batches = max(1, (n + _VOYAGE_BATCH - 1) // _VOYAGE_BATCH)
+    for bi, i in enumerate(range(0, n, _VOYAGE_BATCH), start=1):
+        if batches > 1:
+            stream_status(
+                {
+                    "type": "status",
+                    "state": "waiting_embed",
+                    "label": "EMBEDDINGS",
+                    "model": model,
+                    "detail": f"Embedding batch {bi}/{batches}…",
+                    "count": n,
+                }
+            )
         vectors.extend(_embed_batch(texts[i : i + _VOYAGE_BATCH], key, model, base))
+    ms = int((time.time() - started) * 1000)
+    stream_status(
+        {
+            "type": "status",
+            "state": "embed_done",
+            "label": "EMBEDDINGS",
+            "model": model,
+            "ms": ms,
+            "detail": f"Embedded {n} text(s) in {ms / 1000:.1f}s",
+            "count": n,
+        }
+    )
     return vectors
 
 

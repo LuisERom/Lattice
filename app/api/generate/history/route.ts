@@ -4,8 +4,10 @@ import { type NextRequest } from "next/server";
 import type { GenerationRunSummary } from "@/lib/generate/history";
 import {
   GENERATION_PHASES,
+  LEGACY_GENERATION_PHASES,
   groupStreamEventsByPhase,
   parseStreamNdjson,
+  sortPhases,
   type PhaseLogGroup,
 } from "@/lib/generate/stream-log";
 import { artifactsDir, generatedTopicPath } from "@/lib/paths";
@@ -15,7 +17,10 @@ export type { GenerationRunSummary };
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PHASE_SET = new Set<string>(GENERATION_PHASES);
+const PHASE_SET = new Set<string>([
+  ...GENERATION_PHASES,
+  ...LEGACY_GENERATION_PHASES,
+]);
 
 function artifactsRoot(): string {
   return artifactsDir();
@@ -53,8 +58,10 @@ function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | nul
   const scopeData = readJsonSafe<ScopeFile>(path.join(dirPath, "0_scope.json"));
   const name = scopeData?.scope?.name?.trim() || slug;
 
-  const phasesCompleted = GENERATION_PHASES.filter((phase) =>
-    existsSync(path.join(dirPath, `${phase}.json`))
+  const phasesCompleted = sortPhases(
+    [...GENERATION_PHASES, ...LEGACY_GENERATION_PHASES].filter((phase) =>
+      existsSync(path.join(dirPath, `${phase}.json`))
+    )
   );
 
   const streamPath = path.join(dirPath, "stream.ndjson");
@@ -147,10 +154,20 @@ function loadRunDetail(slug: string): {
 
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");
+  const phase = req.nextUrl.searchParams.get("phase");
   if (slug) {
     const detail = loadRunDetail(slug);
     if (!detail) {
       return Response.json({ error: "Run not found" }, { status: 404 });
+    }
+    // Lazy load a single phase's lines (used by the live generate UI accordion).
+    if (phase) {
+      const group = detail.phases.find((p) => p.phase === phase);
+      return Response.json({
+        phase,
+        lines: group?.lines ?? [],
+        count: group?.lines.length ?? 0,
+      });
     }
     return Response.json(detail);
   }

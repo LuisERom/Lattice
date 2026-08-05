@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .common import ensure_json_file
+from .connectivity import prune_contract
 
 
 def build_contract(
@@ -31,7 +32,12 @@ def build_contract(
         )
     edges = list(procedures_payload.get("edges") or [])
     items = list(items_payload.get("items") or [])
-    return {"topic": topic, "nodes": nodes, "edges": edges, "items": items}
+    doc = {"topic": topic, "nodes": nodes, "edges": edges, "items": items}
+    # Safety net: drop concepts that still have zero edges (and their items).
+    doc, removed = prune_contract(doc)
+    if removed:
+        doc["_pruned_unlinked"] = removed
+    return doc
 
 
 def write_review_report(path: Path, audit_payload: dict[str, Any]) -> None:
@@ -40,6 +46,11 @@ def write_review_report(path: Path, audit_payload: dict[str, Any]) -> None:
     lines.append(f"- Structural errors: {len(errors)}")
     for e in errors[:50]:
         lines.append(f"  - {e}")
+    lines.append("")
+    pruned = list(audit_payload.get("pruned_unlinked") or [])
+    lines.append(f"- Pruned unlinked concepts: {len(pruned)}")
+    for ref in pruned[:50]:
+        lines.append(f"  - {ref}")
     lines.append("")
     detail_flags = list(audit_payload.get("detail_flags") or [])
     lines.append(f"- Node audit flags: {len(detail_flags)}")

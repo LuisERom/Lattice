@@ -112,6 +112,11 @@ def detect_prerequisite_cycles(doc: dict[str, Any]) -> list[str]:
 
 
 def find_orphan_nodes(doc: dict[str, Any]) -> list[str]:
+    """Nodes with zero edges are orphans.
+
+    Having an atomic item is not enough — every node must participate in the
+    structural graph (prerequisite_of / part_of / used_in / …).
+    """
     node_refs = {n.get("ref") for n in doc.get("nodes", []) if n.get("ref")}
     connected: set[str] = set()
     for e in doc.get("edges", []):
@@ -121,11 +126,9 @@ def find_orphan_nodes(doc: dict[str, Any]) -> list[str]:
             connected.add(s)
         if t in node_refs:
             connected.add(t)
-    for it in doc.get("items", []):
-        for m in it.get("member_node_refs") or []:
-            if m in node_refs:
-                connected.add(m)
-    orphans = sorted(node_refs - connected)
+    orphans = sorted(ref for ref in node_refs if ref not in connected)
     if not orphans:
         return []
-    return [f"orphan nodes with no edge/item membership: {', '.join(orphans[:20])}"]
+    sample = ", ".join(orphans[:20])
+    more = f" (+{len(orphans) - 20} more)" if len(orphans) > 20 else ""
+    return [f"orphan nodes with no edges: {sample}{more}"]
