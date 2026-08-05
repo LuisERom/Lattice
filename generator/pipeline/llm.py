@@ -5,12 +5,25 @@ import os
 import random
 import re
 import time
+import uuid
 import urllib.error
 import urllib.request
 from typing import Any
 
 from .common import load_dotenv
 from .stream import stream_status
+
+
+def _request_payload(
+    messages: list[dict[str, str]], model: str, temperature: float
+) -> dict[str, Any]:
+    """Exact chat payload sent to the API (minus auth)."""
+    return {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "response_format": {"type": "json_object"},
+    }
 
 
 def extract_json(text: str) -> dict[str, Any]:
@@ -123,6 +136,8 @@ def chat_json(
 ) -> dict[str, Any]:
     load_dotenv()
     call_label = _infer_label(messages, label)
+    call_id = uuid.uuid4().hex[:12]
+    request = _request_payload(messages, model, temperature)
     started = time.time()
     stream_status(
         {
@@ -130,6 +145,8 @@ def chat_json(
             "state": "waiting_llm",
             "label": call_label,
             "model": model,
+            "call_id": call_id,
+            "request": request,
             "detail": f"Calling {model}…",
         }
     )
@@ -144,7 +161,10 @@ def chat_json(
                 "state": "llm_done",
                 "label": call_label,
                 "model": model,
+                "call_id": call_id,
                 "ms": ms,
+                "response": result,
+                "raw": json.dumps(result, ensure_ascii=False),
                 "detail": f"Fake LLM returned in {ms}ms",
             }
         )
@@ -157,15 +177,9 @@ def chat_json(
             "or set LATTICE_FAKE_LLM=1 for offline pipeline tests."
         )
     base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    payload = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "response_format": {"type": "json_object"},
-    }
     req = urllib.request.Request(
         f"{base_url}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
+        data=json.dumps(request).encode("utf-8"),
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -183,6 +197,8 @@ def chat_json(
                         "state": "waiting_llm",
                         "label": call_label,
                         "model": model,
+                        "call_id": call_id,
+                        "request": request,
                         "detail": f"Retry {attempt}/{retries}…",
                     }
                 )
@@ -197,7 +213,10 @@ def chat_json(
                     "state": "llm_done",
                     "label": call_label,
                     "model": model,
+                    "call_id": call_id,
                     "ms": ms,
+                    "response": result,
+                    "raw": content,
                     "detail": f"LLM responded in {ms / 1000:.1f}s",
                 }
             )
@@ -216,7 +235,10 @@ def chat_json(
                 "state": "llm_error",
                 "label": call_label,
                 "model": model,
+                "call_id": call_id,
                 "ms": ms,
+                "request": request,
+                "error": detail,
                 "detail": f"HTTP {last_err.code} after {ms / 1000:.1f}s",
             }
         )
@@ -227,7 +249,10 @@ def chat_json(
             "state": "llm_error",
             "label": call_label,
             "model": model,
+            "call_id": call_id,
             "ms": ms,
+            "request": request,
+            "error": str(last_err),
             "detail": f"Failed after {ms / 1000:.1f}s: {last_err}",
         }
     )

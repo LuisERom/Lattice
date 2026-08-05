@@ -148,7 +148,10 @@ function loadRunDetail(slug: string): {
   }
 
   const events = parseStreamNdjson(readFileSync(streamPath, "utf8"));
-  const phases = groupStreamEventsByPhase(events).filter((g) => PHASE_SET.has(g.phase));
+  // History UI already shows phase title + description; skip redundant banners.
+  const phases = groupStreamEventsByPhase(events, { omitPhaseBanners: true }).filter(
+    (g) => PHASE_SET.has(g.phase)
+  );
   return { summary, phases };
 }
 
@@ -160,13 +163,14 @@ export async function GET(req: NextRequest) {
     if (!detail) {
       return Response.json({ error: "Run not found" }, { status: 404 });
     }
-    // Lazy load a single phase's lines (used by the live generate UI accordion).
+    // Lazy load a single phase's entries (used by the live generate UI accordion).
     if (phase) {
       const group = detail.phases.find((p) => p.phase === phase);
       return Response.json({
         phase,
+        entries: group?.entries ?? [],
         lines: group?.lines ?? [],
-        count: group?.lines.length ?? 0,
+        count: group?.entries.length ?? 0,
       });
     }
     return Response.json(detail);

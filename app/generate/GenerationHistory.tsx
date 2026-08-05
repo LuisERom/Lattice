@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { GenerationRunSummary } from "@/lib/generate/history";
-import type { PhaseLogGroup } from "@/lib/generate/stream-log";
+import type { LogEntry, PhaseLogGroup } from "@/lib/generate/stream-log";
 import {
   GENERATION_PHASES,
+  phaseDescription,
   phaseLabel,
   sortPhases,
 } from "@/lib/generate/stream-log";
+import EventLogEntries from "./EventLogEntries";
 
 type RunDetail = {
   summary: GenerationRunSummary;
@@ -29,37 +31,6 @@ function statusClass(status: GenerationRunSummary["status"]): string {
 function formatWhen(iso: string | null): string {
   if (!iso) return "unknown time";
   return new Date(iso).toLocaleString();
-}
-
-function EventLogLines({ lines }: { lines: string[] }) {
-  if (lines.length === 0) {
-    return <div className="text-[var(--muted)]">No events recorded for this phase.</div>;
-  }
-  return (
-    <>
-      {lines.map((line, i) => {
-        const isPhase = line.startsWith("▶");
-        const isDone = line.startsWith("✓");
-        const isError = line.startsWith("✗");
-        return (
-          <div
-            key={i}
-            className={`border-b border-[var(--border)] py-0.5 last:border-b-0 ${
-              isError
-                ? "text-rose-400"
-                : isDone
-                  ? "text-emerald-400"
-                  : isPhase
-                    ? "text-sky-300 font-semibold"
-                    : "text-[var(--muted)]"
-            }`}
-          >
-            {line}
-          </div>
-        );
-      })}
-    </>
-  );
 }
 
 function RunCard({
@@ -98,7 +69,9 @@ function RunCard({
     };
   }, [expanded, detail, summary.slug]);
 
-  const phaseMap = new Map((detail?.phases || []).map((p) => [p.phase, p.lines]));
+  const phaseMap = new Map(
+    (detail?.phases || []).map((p) => [p.phase, p.entries ?? []] as const)
+  );
 
   return (
     <div className="rounded-md border border-[var(--border)] bg-[var(--background)]">
@@ -118,15 +91,20 @@ function RunCard({
       {expanded && (
         <div className="border-t border-[var(--border)] px-3 py-2 text-xs text-[var(--muted)]">
           <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1">
-            <span>Level: {summary.scopeLevel}</span>
+            <span>Depth: {summary.scopeLevel}</span>
             <span>Started: {formatWhen(summary.startedAt)}</span>
             <span>Updated: {formatWhen(summary.updatedAt)}</span>
-            <span>{summary.eventCount} stream events</span>
+            <span>{summary.eventCount} log events</span>
             {summary.hasImport && <span className="text-emerald-400">imported</span>}
-            {summary.lastPhase && <span>Last phase: {summary.lastPhase}</span>}
+            {summary.lastPhase && (
+              <span>Reached: {phaseLabel(summary.lastPhase)}</span>
+            )}
           </div>
           {summary.scopeDescription && (
-            <p className="mb-2 text-[var(--text)]">{summary.scopeDescription}</p>
+            <p className="mb-2 text-[var(--text)]">
+              <span className="text-[var(--muted)]">Topic: </span>
+              {summary.scopeDescription}
+            </p>
           )}
 
           {loading && <div>Loading phase details...</div>}
@@ -139,7 +117,7 @@ function RunCard({
                 ...summary.phasesCompleted,
                 ...detail.phases.map((p) => p.phase),
               ]).map((phase) => {
-                const lines = phaseMap.get(phase) || [];
+                const entries: LogEntry[] = phaseMap.get(phase) || [];
                 const completed = summary.phasesCompleted.includes(phase);
                 const isOpen = !!openPhases[phase];
                 return (
@@ -152,25 +130,38 @@ function RunCard({
                       onClick={() =>
                         setOpenPhases((prev) => ({ ...prev, [phase]: !prev[phase] }))
                       }
-                      className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-[var(--surface-2)]"
+                      className="flex w-full items-start gap-2 px-2 py-1.5 text-left hover:bg-[var(--surface-2)]"
                     >
-                      <span className="text-[var(--muted)]">{isOpen ? "▼" : "▶"}</span>
-                      <span className="font-mono text-sky-300">{phaseLabel(phase)}</span>
-                      <span className="text-[var(--muted)]">
-                        {lines.length > 0 ? `${lines.length} events` : "no stream events"}
+                      <span className="mt-0.5 text-[var(--muted)]">{isOpen ? "▼" : "▶"}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span className="font-medium text-sky-300">{phaseLabel(phase)}</span>
+                          {completed && (
+                            <span className="text-emerald-400">saved</span>
+                          )}
+                          <span className="text-[var(--muted)]">
+                            {entries.length > 0
+                              ? `${entries.length} steps`
+                              : completed
+                                ? "no detailed log"
+                                : "not started"}
+                          </span>
+                        </span>
+                        {phaseDescription(phase) && (
+                          <span className="mt-0.5 block leading-snug text-[var(--text)]/80">
+                            {phaseDescription(phase)}
+                          </span>
+                        )}
                       </span>
-                      {completed && (
-                        <span className="ml-auto text-emerald-400">checkpoint</span>
-                      )}
                     </button>
                     {isOpen && (
-                      <div className="max-h-64 overflow-y-auto border-t border-[var(--border)] p-2 font-mono text-[10px] leading-relaxed">
-                        {lines.length === 0 && completed && (
+                      <div className="max-h-96 overflow-y-auto border-t border-[var(--border)] p-2 font-mono text-[10px] leading-relaxed">
+                        {entries.length === 0 && completed && (
                           <div className="mb-1 text-[var(--muted)]">
                             Checkpoint saved — no stream events recorded for this phase.
                           </div>
                         )}
-                        <EventLogLines lines={lines} />
+                        <EventLogEntries entries={entries} />
                       </div>
                     )}
                   </div>

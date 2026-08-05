@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import cytoscape, { type Core } from "cytoscape";
+import EventLogEntries from "./EventLogEntries";
 import GenerationHistory from "./GenerationHistory";
 import {
   GENERATION_PHASES,
+  applyStreamEventToEntries,
   formatStreamEvent,
+  phaseDescription,
   phaseLabel,
+  type LogEntry,
   type StreamEvent as LogStreamEvent,
 } from "@/lib/generate/stream-log";
 
@@ -63,33 +67,6 @@ function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "topic";
 }
 
-function EventLine({ line }: { line: string }) {
-  const isPhase = line.startsWith("▶");
-  const isStep = line.startsWith("→") || line.startsWith("·");
-  const isWait = line.startsWith("⏳");
-  const isDone = line.startsWith("✓");
-  const isError = line.startsWith("✗");
-  return (
-    <div
-      className={`border-b border-[var(--border)] py-0.5 last:border-b-0 ${
-        isError
-          ? "text-rose-400"
-          : isDone
-            ? "text-emerald-400"
-            : isWait
-              ? "text-amber-300"
-              : isPhase
-                ? "text-sky-300 font-semibold"
-                : isStep
-                  ? "text-sky-200/90"
-                  : "text-[var(--muted)]"
-      }`}
-    >
-      {line}
-    </div>
-  );
-}
-
 function normalizeScope(raw: unknown, fallbackName: string): ScopePayload | null {
   if (!raw || typeof raw !== "object") return null;
   const s = raw as Partial<ScopePayload> & { include?: unknown; exclude?: unknown; outline?: unknown };
@@ -129,14 +106,14 @@ export default function GeneratePage() {
   const [liveStatus, setLiveStatus] = useState<string>("");
   const [waitSec, setWaitSec] = useState(0);
   const [isWaiting, setIsWaiting] = useState(false);
-  /** Phases seen so far (accordion headers). Only the current phase keeps lines in React state. */
+  /** Phases seen so far (accordion headers). Only the current phase keeps entries in React state. */
   const [phaseOrder, setPhaseOrder] = useState<string[]>([]);
   const [phaseCounts, setPhaseCounts] = useState<Record<string, number>>({});
   const [currentPhaseName, setCurrentPhaseName] = useState("0_scope");
-  const [currentLines, setCurrentLines] = useState<string[]>([]);
+  const [currentEntries, setCurrentEntries] = useState<LogEntry[]>([]);
   /** Past phase bodies: loaded on open, deleted on close to free memory. */
   const [openPastPhases, setOpenPastPhases] = useState<
-    Record<string, string[] | "loading" | "error">
+    Record<string, LogEntry[] | "loading" | "error">
   >({});
 
   const llmMessagesRef = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
@@ -167,7 +144,14 @@ export default function GeneratePage() {
     const el = eventLogRef.current;
     if (!el || !stickToBottomRef.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [currentLines, liveStatus, isWaiting, waitSec]);
+  }, [currentEntries, liveStatus, isWaiting, waitSec]);
+
+  useEffect(() => {
+    setPhaseCounts((prev) => {
+      if (prev[currentPhaseName] === currentEntries.length) return prev;
+      return { ...prev, [currentPhaseName]: currentEntries.length };
+    });
+  }, [currentEntries, currentPhaseName]);
 
   // Tick the phase elapsed timer every second while running.
   useEffect(() => {
@@ -324,18 +308,18 @@ export default function GeneratePage() {
     });
   }
 
-  function appendPhaseLine(text: string) {
+  function appendPhaseText(text: string) {
     const phase = currentPhaseNameRef.current || "0_scope";
     setPhaseOrder((prev) => (prev.includes(phase) ? prev : [...prev, phase]));
-    setPhaseCounts((prev) => ({ ...prev, [phase]: (prev[phase] || 0) + 1 }));
-    setCurrentLines((prev) => [...prev, text]);
+    setCurrentEntries((prev) => [...prev, { kind: "text", text }]);
   }
 
   function beginPhase(name: string) {
     currentPhaseNameRef.current = name;
     setCurrentPhaseName(name);
     setPhaseOrder((prev) => (prev.includes(name) ? prev : [...prev, name]));
-    setCurrentLines([]);
+    setCurrentEntries([]);
+    setPhaseCounts((prev) => ({ ...prev, [name]: 0 }));
     setOpenPastPhases((prev) => {
       if (!(name in prev)) return prev;
       const next = { ...prev };
@@ -348,7 +332,7 @@ export default function GeneratePage() {
   async function togglePastPhase(phase: string) {
     if (phase === currentPhaseNameRef.current) return;
     if (phase in openPastPhases) {
-      // Close and drop lines from React state (RAM for that panel).
+      // Close and drop entries from React state (RAM for that panel).
       setOpenPastPhases((prev) => {
         const next = { ...prev };
         delete next[phase];
@@ -362,9 +346,13 @@ export default function GeneratePage() {
       const resp = await fetch(
         `/api/generate/history?slug=${encodeURIComponent(slug)}&phase=${encodeURIComponent(phase)}`
       );
-      const data = (await resp.json()) as { lines?: string[]; error?: string };
+      const data = (await resp.json()) as {
+        entries?: LogEntry[];
+        lines?: string[];
+        error?: string;
+      };
       if (!resp.ok) throw new Error(data.error || "Failed to load phase log");
-      setOpenPastPhases((prev) => ({ ...prev, [phase]: data.lines || [] }));
+      setOpenPastPhases((prev) => ({ ...prev, [phase]: data.entries || [] }));
     } catch {
       setOpenPastPhases((prev) => ({ ...prev, [phase]: "error" }));
     }
@@ -397,9 +385,15 @@ export default function GeneratePage() {
       beginPhase(event.name);
     }
 
-    const line = formatStreamEvent(event as LogStreamEvent);
-    if (line) appendPhaseLine(line);
+    const phase = currentPhaseNameRef.current || "0_scope";
+    setPhaseOrder((prev) => (prev.includes(phase) ? prev : [...prev, phase]));
+    setCurrentEntries((prev) =>
+      applyStreamEventToEntries(prev, event as LogStreamEvent, {
+        omitPhaseBanners: true,
+      })
+    );
 
+    const line = formatStreamEvent(event as LogStreamEvent);
     if (event.type === "status" && typeof event.state === "string") {
       if (event.state === "waiting_llm" || event.state === "waiting_embed") {
         beginWait((line || "Waiting…").replace(/^⏳\s*/, ""));
@@ -637,7 +631,7 @@ export default function GeneratePage() {
         const parsed = JSON.parse(evt.data) as StreamEvent;
         applyStreamEvent(parsed);
         } catch {
-          appendPhaseLine(evt.data);
+          appendPhaseText(evt.data);
         }
       };
     es.onerror = () => {
@@ -645,7 +639,7 @@ export default function GeneratePage() {
       const now = Date.now();
       if (now - lastErrLog > 5000) {
         lastErrLog = now;
-        appendPhaseLine("stream reconnecting…");
+        appendPhaseText("stream reconnecting…");
       }
     };
   }
@@ -663,7 +657,7 @@ export default function GeneratePage() {
     setPhaseOrder([]);
     setPhaseCounts({});
     setCurrentPhaseName("0_scope");
-    setCurrentLines([]);
+    setCurrentEntries([]);
     setOpenPastPhases({});
     currentPhaseNameRef.current = "0_scope";
     setError("");
@@ -723,7 +717,7 @@ export default function GeneratePage() {
       // Stream will also emit {type:"stopped"}; set local state immediately for snappy UI.
       setRunning(false);
       setStopped(true);
-      appendPhaseLine("■ stop requested");
+      appendPhaseText("■ stop requested");
     } catch (err) {
       setError(String(err));
     } finally {
@@ -1012,30 +1006,33 @@ export default function GeneratePage() {
                         <button
                           type="button"
                           onClick={() => togglePastPhase(p)}
-                          className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-[10px] hover:bg-[var(--surface-2)]"
+                          className="flex w-full items-start gap-2 px-2 py-1.5 text-left text-[10px] hover:bg-[var(--surface-2)]"
                         >
-                          <span className="text-[var(--muted)]">{open ? "▼" : "▶"}</span>
-                          <span className="font-mono text-sky-300">{phaseLabel(p)}</span>
-                          <span className="text-[var(--muted)]">{count} events</span>
-                          <span className="ml-auto text-[var(--muted)]">
-                            {open ? "unload" : "load"}
+                          <span className="mt-0.5 text-[var(--muted)]">{open ? "▼" : "▶"}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-baseline gap-x-2">
+                              <span className="font-medium text-sky-300">{phaseLabel(p)}</span>
+                              <span className="text-[var(--muted)]">{count} events</span>
+                              <span className="ml-auto text-[var(--muted)]">
+                                {open ? "unload" : "load"}
+                              </span>
+                            </span>
+                            {phaseDescription(p) && (
+                              <span className="mt-0.5 block leading-snug text-[var(--text)]/80">
+                                {phaseDescription(p)}
+                              </span>
+                            )}
                           </span>
                         </button>
                         {open && (
-                          <div className="max-h-40 overflow-y-auto border-t border-[var(--border)] p-2 font-mono text-[10px] leading-relaxed">
+                          <div className="max-h-56 overflow-y-auto border-t border-[var(--border)] p-2 font-mono text-[10px] leading-relaxed">
                             {body === "loading" && (
                               <div className="text-[var(--muted)]">Loading from disk…</div>
                             )}
                             {body === "error" && (
                               <div className="text-rose-400">Failed to load phase log.</div>
                             )}
-                            {Array.isArray(body) && body.length === 0 && (
-                              <div className="text-[var(--muted)]">No events for this phase.</div>
-                            )}
-                            {Array.isArray(body) &&
-                              body.map((line, i) => (
-                                <EventLine key={`${p}-${i}`} line={line} />
-                              ))}
+                            {Array.isArray(body) && <EventLogEntries entries={body} />}
                           </div>
                         )}
                       </div>
@@ -1043,13 +1040,20 @@ export default function GeneratePage() {
                   })}
 
                 <div className="flex min-h-0 flex-1 flex-col rounded border border-sky-500/40 bg-[var(--surface)]">
-                  <div className="flex items-center gap-2 border-b border-[var(--border)] px-2 py-1.5 text-[10px]">
-                    <span className="font-mono font-semibold text-sky-300">
-                      {phaseLabel(currentPhaseName)}
-                    </span>
-                    <span className="text-[var(--muted)]">
-                      {phaseCounts[currentPhaseName] || currentLines.length} events · live
-                    </span>
+                  <div className="border-b border-[var(--border)] px-2 py-1.5 text-[10px]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sky-300">
+                        {phaseLabel(currentPhaseName)}
+                      </span>
+                      <span className="text-[var(--muted)]">
+                        {phaseCounts[currentPhaseName] || currentEntries.length} steps · live
+                      </span>
+                    </div>
+                    {phaseDescription(currentPhaseName) && (
+                      <div className="mt-0.5 leading-snug text-[var(--text)]/80">
+                        {phaseDescription(currentPhaseName)}
+                      </div>
+                    )}
                   </div>
                   <div
                     ref={eventLogRef}
@@ -1061,12 +1065,10 @@ export default function GeneratePage() {
                     }}
                     className="min-h-0 flex-1 overflow-y-auto p-2 font-mono text-[10px] leading-relaxed"
                   >
-                    {currentLines.length === 0 ? (
+                    {currentEntries.length === 0 ? (
                       <div className="text-[var(--muted)]">Waiting for events…</div>
                     ) : (
-                      currentLines.map((line, i) => (
-                        <EventLine key={`cur-${i}`} line={line} />
-                      ))
+                      <EventLogEntries entries={currentEntries} />
                     )}
                   </div>
                 </div>

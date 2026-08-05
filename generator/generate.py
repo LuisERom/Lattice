@@ -139,15 +139,15 @@ def _run_phases(
     from_idx: int | None,
 ) -> int:
     PHASE_INTENTS = {
-        "0_scope": "Freeze the topic boundary (or load scripted scope).",
-        "A_scaffold": "Draft capability/goal areas, then run a gap critic.",
-        "B_seeds": "Propose a small set of learning-goal seeds per section.",
-        "C_expand": "Grow the graph by asking prerequisites for each seed (BFS).",
-        "D_detailed": "Write precise descriptions and audit uncertain nodes.",
-        "E_edges": "Keep the prereq spine; add lateral edges; cover isolates.",
-        "F_procedures": "Fill ordered part_of steps for each procedure.",
-        "G_items": "Generate review items and per-method questions.",
-        "H_audit": "Validate structure and sample completeness critics.",
+        "0_scope": "Lock in what this topic is about — what belongs in it, and what should stay out.",
+        "A_scaffold": "Split the topic into big skill areas (like chapters), so the map has a clear shape.",
+        "B_seeds": "In each area, pick a few end goals — the things a learner should eventually be able to do.",
+        "C_expand": "Working backward from those goals, find what must be learned first, step by step.",
+        "D_detailed": "Write a clear explanation for every concept that made it onto the map.",
+        "E_edges": "Add useful links between related ideas (beyond just “learn this before that”).",
+        "F_procedures": "For multi-step skills, list the steps in the order they should be done.",
+        "G_items": "Create practice questions so each concept and skill can be reviewed later.",
+        "H_audit": "Scan the finished map for gaps, broken links, and weak spots before import.",
     }
 
     def _begin_phase(name: str) -> None:
