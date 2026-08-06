@@ -16,15 +16,17 @@ type RunDetail = {
   phases: PhaseLogGroup[];
 };
 
-function statusLabel(status: GenerationRunSummary["status"]): string {
-  if (status === "completed") return "completed";
-  if (status === "failed") return "failed";
+function statusLabel(summary: GenerationRunSummary): string {
+  if (summary.isLive) return "running";
+  if (summary.status === "completed") return "completed";
+  if (summary.status === "failed") return "failed";
   return "in progress";
 }
 
-function statusClass(status: GenerationRunSummary["status"]): string {
-  if (status === "completed") return "text-emerald-400";
-  if (status === "failed") return "text-rose-400";
+function statusClass(summary: GenerationRunSummary): string {
+  if (summary.isLive) return "text-sky-300";
+  if (summary.status === "completed") return "text-emerald-400";
+  if (summary.status === "failed") return "text-rose-400";
   return "text-amber-300";
 }
 
@@ -83,8 +85,8 @@ function RunCard({
         <span className="text-[var(--muted)]">{expanded ? "▼" : "▶"}</span>
         <span className="font-medium text-[var(--text)]">{summary.name}</span>
         <span className="font-mono text-xs text-[var(--muted)]">{summary.slug}</span>
-        <span className={`ml-auto text-xs ${statusClass(summary.status)}`}>
-          {statusLabel(summary.status)}
+        <span className={`ml-auto text-xs ${statusClass(summary)}`}>
+          {statusLabel(summary)}
         </span>
       </button>
 

@@ -1,6 +1,9 @@
 import Database from "better-sqlite3";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { loadEnvFiles } from "../load-env";
+
+loadEnvFiles();
 
 // Single-file SQLite database for local single-user use. All DB access happens
 // in server code only (never in the browser).

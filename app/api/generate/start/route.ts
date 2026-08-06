@@ -160,11 +160,14 @@ export async function POST(req: NextRequest) {
   }
 
   const dotEnvVars = readDotEnvFiles(root);
+  // Detach so the generator keeps running if the Next.js process reloads or
+  // the browser leaves the generate page (SSE disconnect must not stop it).
   const child = spawn(pythonBin, args, {
     cwd: root,
     env: { ...process.env, ...dotEnvVars },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
+    detached: true,
   });
 
   if (child.pid) {
@@ -191,6 +194,8 @@ export async function POST(req: NextRequest) {
       // ignore
     }
   });
+  // Allow the Node event loop to exit independently of this child.
+  child.unref();
 
   return Response.json({ ok: true, slug, resume });
 }

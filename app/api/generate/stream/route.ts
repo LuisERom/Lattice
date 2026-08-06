@@ -129,7 +129,12 @@ export async function GET(req: NextRequest) {
           }
           try {
             const event = JSON.parse(trimmed) as { type?: string };
-            if (event.type === "done") {
+            // Terminal events — client can reconnect later by replaying the file.
+            if (
+              event.type === "done" ||
+              event.type === "stopped" ||
+              event.type === "failed"
+            ) {
               close();
               return;
             }

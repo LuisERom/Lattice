@@ -127,7 +127,8 @@ def main() -> int:
         safe_msg = f"\n[FATAL] {exc}\n{tb}".encode("ascii", "replace").decode("ascii")
         print(safe_msg, flush=True)
         stream_write(slug, {"type": "error", "message": str(exc)})
-        stream_write(slug, {"type": "done"})
+        # Not "done" — that means a finished successful pipeline.
+        stream_write(slug, {"type": "failed", "message": str(exc)})
         return 2
 
 

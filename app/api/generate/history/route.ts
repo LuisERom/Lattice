@@ -51,8 +51,57 @@ type ScopeFile = {
     scope_level?: string;
     scope_description?: string;
     summary?: string;
+    include?: unknown;
+    exclude?: unknown;
+    outline?: unknown;
   };
 };
+
+type RunMetaFile = {
+  subject?: string;
+  scopeDescription?: string;
+  scopeLevel?: string;
+};
+
+export type RestorableScope = {
+  name: string;
+  scope_level: "working" | "deep" | "exam-ready";
+  scope_description: string;
+  include: string[];
+  exclude: string[];
+  summary: string;
+  outline?: Array<{
+    section: string;
+    in?: string;
+    out?: string;
+    subsections?: string[];
+  }>;
+};
+
+function loadRestorableScope(
+  dirPath: string,
+  summary: GenerationRunSummary
+): RestorableScope {
+  const scopeData = readJsonSafe<ScopeFile>(path.join(dirPath, "0_scope.json"));
+  const runMeta = readJsonSafe<RunMetaFile>(path.join(dirPath, "run.json"));
+  const s = scopeData?.scope;
+  const levelRaw = s?.scope_level || runMeta?.scopeLevel || summary.scopeLevel;
+  const scope_level =
+    levelRaw === "working" || levelRaw === "exam-ready" ? levelRaw : "deep";
+  const scope_description =
+    (s?.scope_description || runMeta?.scopeDescription || summary.scopeDescription || "").trim();
+  return {
+    name: (s?.name || runMeta?.subject || summary.name || summary.slug).trim(),
+    scope_level,
+    scope_description,
+    include: Array.isArray(s?.include) ? s.include.map(String) : [],
+    exclude: Array.isArray(s?.exclude) ? s.exclude.map(String) : [],
+    summary: String(s?.summary || scope_description).trim(),
+    outline: Array.isArray(s?.outline)
+      ? (s.outline as RestorableScope["outline"])
+      : [],
+  };
+}
 
 function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | null {
   const scopeData = readJsonSafe<ScopeFile>(path.join(dirPath, "0_scope.json"));
@@ -65,6 +114,7 @@ function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | nul
   );
 
   const streamPath = path.join(dirPath, "stream.ndjson");
+  const isLive = existsSync(path.join(dirPath, "run.pid"));
   let eventCount = 0;
   let status: GenerationRunSummary["status"] = "in_progress";
   let lastPhase: string | null = phasesCompleted.at(-1) ?? null;
@@ -79,14 +129,28 @@ function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | nul
       }
     }
     const hasDone = events.some((e) => e.type === "done");
+    const hasFailed = events.some((e) => e.type === "failed");
+    const hasStopped = events.some((e) => e.type === "stopped");
     const hasError = events.some((e) => e.type === "error");
-    if (hasDone && phasesCompleted.includes("H_audit")) {
+    const finishedAudit = phasesCompleted.includes("H_audit");
+    if (isLive) {
+      // Process still running — never call this failed mid-flight.
+      status = "in_progress";
+    } else if (hasDone && finishedAudit && !hasFailed) {
+      // Successful pipeline end only: final audit checkpoint + done event.
       status = "completed";
-    } else if (hasError || (phasesCompleted.length > 0 && !hasDone)) {
+    } else if (
+      hasFailed ||
+      hasError ||
+      hasStopped ||
+      hasDone || // done without H_audit = aborted/old fatal path
+      phasesCompleted.length > 0 ||
+      eventCount > 0
+    ) {
       status = "failed";
-    } else if (hasDone) {
-      status = "completed";
     }
+  } else if (isLive) {
+    status = "in_progress";
   } else if (phasesCompleted.includes("H_audit")) {
     status = "completed";
   } else if (phasesCompleted.length > 0) {
@@ -103,6 +167,7 @@ function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | nul
     scopeLevel: scopeData?.scope?.scope_level || "deep",
     scopeDescription: scopeData?.scope?.scope_description || "",
     status,
+    isLive,
     phasesCompleted,
     lastPhase,
     startedAt: ts ? new Date(ts).toISOString() : null,
@@ -133,6 +198,7 @@ function listRuns(): GenerationRunSummary[] {
 
 function loadRunDetail(slug: string): {
   summary: GenerationRunSummary;
+  scope: RestorableScope;
   phases: PhaseLogGroup[];
 } | null {
   if (!safeSlug(slug)) return null;
@@ -141,10 +207,11 @@ function loadRunDetail(slug: string): {
 
   const summary = summarizeRun(slug, dirPath);
   if (!summary) return null;
+  const scope = loadRestorableScope(dirPath, summary);
 
   const streamPath = path.join(dirPath, "stream.ndjson");
   if (!existsSync(streamPath)) {
-    return { summary, phases: [] };
+    return { summary, scope, phases: [] };
   }
 
   const events = parseStreamNdjson(readFileSync(streamPath, "utf8"));
@@ -152,7 +219,7 @@ function loadRunDetail(slug: string): {
   const phases = groupStreamEventsByPhase(events, { omitPhaseBanners: true }).filter(
     (g) => PHASE_SET.has(g.phase)
   );
-  return { summary, phases };
+  return { summary, scope, phases };
 }
 
 export async function GET(req: NextRequest) {

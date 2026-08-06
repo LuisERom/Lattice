@@ -5,6 +5,12 @@ import cytoscape, { type Core } from "cytoscape";
 import EventLogEntries from "./EventLogEntries";
 import GenerationHistory from "./GenerationHistory";
 import {
+  clearActiveRun,
+  readActiveRun,
+  writeActiveRun,
+  type PersistedActiveRun,
+} from "@/lib/generate/active-run";
+import {
   GENERATION_PHASES,
   applyStreamEventToEntries,
   formatStreamEvent,
@@ -98,6 +104,7 @@ export default function GeneratePage() {
   const [stopping, setStopping] = useState(false);
   const [done, setDone] = useState(false);
   const [slug, setSlug] = useState<string | null>(null);
+  const slugRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<string>("0_scope");
   const [importState, setImportState] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -133,6 +140,7 @@ export default function GeneratePage() {
   const currentPhaseNameRef = useRef("0_scope");
   /** Only auto-scroll the current-phase log when the user is already near the bottom. */
   const stickToBottomRef = useRef(true);
+  const mountedRef = useRef(true);
 
   const progressPct = useMemo(() => {
     const idx = PHASE_ORDER.indexOf(done ? "done" : phase);
@@ -413,9 +421,15 @@ export default function GeneratePage() {
       if (detail) setLiveStatus(detail.replace(/^([→·]\s*)/, ""));
     } else if (event.type === "phase" && typeof event.name === "string") {
       setLiveStatus(`Entered ${phaseLabel(event.name)}`);
-    } else if (event.type === "done" || event.type === "stopped") {
+    } else if (event.type === "done" || event.type === "stopped" || event.type === "failed") {
       clearWaitTicker();
-      setLiveStatus(event.type === "done" ? "Generation finished" : "Stopped");
+      setLiveStatus(
+        event.type === "done"
+          ? "Generation finished"
+          : event.type === "failed"
+            ? "Generation failed"
+            : "Stopped"
+      );
     }
   }
 
@@ -432,6 +446,19 @@ export default function GeneratePage() {
       setRunning(false);
       setStopped(false);
       setPhase("done");
+      logStreamEvent(event);
+      clearActiveRun(slugRef.current ?? undefined);
+      esRef.current?.close();
+      esRef.current = null;
+      return;
+    }
+    if (event.type === "failed") {
+      const msg =
+        typeof event.message === "string" ? event.message : "Generation failed";
+      setRunning(false);
+      setStopped(true);
+      setStopping(false);
+      setError(`Generator error: ${msg}`);
       logStreamEvent(event);
       esRef.current?.close();
       esRef.current = null;
@@ -460,9 +487,16 @@ export default function GeneratePage() {
     }
 
     const cy = cyRef.current;
-    if (!cy) {
-      // Cytoscape not ready yet — buffer graph events; they are drained once cy initialises
+    const isGraphEvent =
+      event.type === "node" || event.type === "node_update" || event.type === "edge";
+    if (!cy && isGraphEvent) {
+      // Cytoscape not ready yet — buffer graph events; drain once cy initialises.
       pendingEventsRef.current.push(event);
+      return;
+    }
+    if (!cy) {
+      // Status / scaffold / etc. must still update the log while the graph mounts.
+      logStreamEvent(event);
       return;
     }
 
@@ -616,7 +650,16 @@ export default function GeneratePage() {
     await requestInterviewTurn();
   }
 
+  function persistActiveRun(runSlug: string, runScope: ScopePayload) {
+    writeActiveRun({
+      slug: runSlug,
+      scope: runScope,
+      savedAt: Date.now(),
+    });
+  }
+
   function connectStream(runSlug: string) {
+    slugRef.current = runSlug;
     esRef.current?.close();
     const es = new EventSource(
       `/api/generate/stream?slug=${encodeURIComponent(runSlug)}`
@@ -630,10 +673,10 @@ export default function GeneratePage() {
       try {
         const parsed = JSON.parse(evt.data) as StreamEvent;
         applyStreamEvent(parsed);
-        } catch {
-          appendPhaseText(evt.data);
-        }
-      };
+      } catch {
+        appendPhaseText(evt.data);
+      }
+    };
     es.onerror = () => {
       // EventSource auto-reconnects; avoid spamming the log.
       const now = Date.now();
@@ -642,6 +685,84 @@ export default function GeneratePage() {
         appendPhaseText("stream reconnecting…");
       }
     };
+  }
+
+  async function restoreActiveRun(saved: PersistedActiveRun) {
+    setSlug(saved.slug);
+    slugRef.current = saved.slug;
+    setScope(saved.scope);
+    topicLabelRef.current = saved.scope.name;
+    setDone(false);
+    setStopped(false);
+    setRunning(true);
+    setPhase("0_scope");
+    setPhaseOrder([]);
+    setPhaseCounts({});
+    setCurrentPhaseName("0_scope");
+    setCurrentEntries([]);
+    setOpenPastPhases({});
+    currentPhaseNameRef.current = "0_scope";
+    setError("");
+    setElapsedSec(0);
+    setLiveStatus("Reconnecting to background generation…");
+    clearWaitTicker();
+    stickToBottomRef.current = true;
+    phaseStartRef.current = Date.now();
+    pendingEventsRef.current = [];
+    lastSeenIdRef.current = -1;
+    placeIndexRef.current = 0;
+    cyRef.current?.destroy();
+    cyRef.current = null;
+
+    try {
+      const resp = await fetch(
+        `/api/generate/history?slug=${encodeURIComponent(saved.slug)}`
+      );
+      const data = (await resp.json()) as {
+        summary?: {
+          status: "completed" | "failed" | "in_progress";
+          isLive?: boolean;
+          name?: string;
+        };
+        scope?: ScopePayload;
+        error?: string;
+      };
+      if (!resp.ok) {
+        throw new Error(data.error || "Failed to restore run");
+      }
+      const summary = data.summary;
+      if (!summary) throw new Error("Run not found");
+      if (data.scope) {
+        setScope(data.scope);
+        topicLabelRef.current = data.scope.name;
+        persistActiveRun(saved.slug, data.scope);
+      } else {
+        persistActiveRun(saved.slug, saved.scope);
+      }
+
+      if (summary.status === "completed") {
+        setRunning(false);
+        setDone(true);
+        setLiveStatus("Generation finished — restoring view…");
+      } else if (summary.isLive || summary.status === "in_progress") {
+        setRunning(true);
+        setStopped(false);
+        setLiveStatus("Reconnected — generation still running in the background…");
+      } else {
+        setRunning(false);
+        setStopped(true);
+        setLiveStatus("Run is stopped — you can resume from here.");
+      }
+
+      // Replay the stream file (and keep listening if still live).
+      if (!mountedRef.current) return;
+      connectStream(saved.slug);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setError(String(err));
+      setRunning(false);
+      clearActiveRun(saved.slug);
+    }
   }
 
   async function startGeneration() {
@@ -691,10 +812,13 @@ export default function GeneratePage() {
       }
       const confirmedSlug = data.slug || runSlug;
       setSlug(confirmedSlug);
+      slugRef.current = confirmedSlug;
+      persistActiveRun(confirmedSlug, scope);
       connectStream(confirmedSlug);
     } catch (err) {
       setError(String(err));
       setRunning(false);
+      clearActiveRun(runSlug);
     } finally {
       setStarting(false);
     }
@@ -748,7 +872,11 @@ export default function GeneratePage() {
       if (!resp.ok) {
         throw new Error(data.error || "Failed to resume generator");
       }
-      connectStream(data.slug || slug);
+      const confirmedSlug = data.slug || slug;
+      setSlug(confirmedSlug);
+      slugRef.current = confirmedSlug;
+      persistActiveRun(confirmedSlug, scope);
+      connectStream(confirmedSlug);
     } catch (err) {
       setError(String(err));
       setRunning(false);
@@ -797,8 +925,51 @@ export default function GeneratePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, stopped, done]);
 
+  // Reattach to a run that kept going after leaving this page.
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const saved = readActiveRun();
+      if (saved) {
+        if (!cancelled) await restoreActiveRun(saved);
+        return;
+      }
+      // Fallback: reconnect to whatever generator is still live on disk.
+      try {
+        const listResp = await fetch("/api/generate/history");
+        const listData = (await listResp.json()) as {
+          runs?: Array<{ slug: string; isLive?: boolean }>;
+        };
+        const live = (listData.runs || []).find((r) => r.isLive);
+        if (!live || cancelled) return;
+        const detailResp = await fetch(
+          `/api/generate/history?slug=${encodeURIComponent(live.slug)}`
+        );
+        const detail = (await detailResp.json()) as {
+          scope?: ScopePayload;
+          error?: string;
+        };
+        if (!detailResp.ok || !detail.scope || cancelled) return;
+        await restoreActiveRun({
+          slug: live.slug,
+          scope: detail.scope,
+          savedAt: Date.now(),
+        });
+      } catch {
+        // No live run to restore.
+      }
+    })();
     return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Close the browser SSE subscription only — do not stop the generator.
       esRef.current?.close();
       esRef.current = null;
       cyRef.current?.destroy();
@@ -932,6 +1103,11 @@ export default function GeneratePage() {
               )}
             </div>
           </div>
+          {running && !done && (
+            <p className="mb-2 text-xs text-[var(--muted)]">
+              Generation keeps running if you leave this page. Come back anytime to watch progress.
+            </p>
+          )}
           <div className="mb-2 flex items-center gap-3 text-xs text-[var(--muted)]">
             <span>slug: <code>{slug}</code></span>
             <span>

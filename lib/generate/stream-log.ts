@@ -187,81 +187,56 @@ export function formatLlmCallTitle(entry: LlmCallEntry): string {
   return `✓ LLM done — ${label}${dur ? ` in ${dur}` : ""}${model ? ` [${model}]` : ""}`;
 }
 
-function upsertLlmCall(entries: LogEntry[], event: StreamEvent): LogEntry[] {
+function findPriorRequest(
+  entries: LogEntry[],
+  callId: string | null,
+  label: string
+): LlmRequest | undefined {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (e.kind !== "llm_call" || !e.request) continue;
+    if (callId && e.callId === callId) return e.request;
+    if (!callId && e.label === label) return e.request;
+  }
+  return undefined;
+}
+
+/** Append an LLM status row. Waiting and done stay as separate entries. */
+function appendLlmCall(entries: LogEntry[], event: StreamEvent): LogEntry[] {
   const state = String(event.state || "");
+  if (state !== "waiting_llm" && state !== "llm_done" && state !== "llm_error") {
+    return entries;
+  }
+
   const label = typeof event.label === "string" ? event.label : "LLM_CALL";
   const model = typeof event.model === "string" ? event.model : "";
   const explicitId = typeof event.call_id === "string" ? event.call_id : null;
-  const request = normalizeRequest(event.request);
+  const request =
+    normalizeRequest(event.request) ?? findPriorRequest(entries, explicitId, label);
   const hasResponse = Object.prototype.hasOwnProperty.call(event, "response");
   const hasRaw = typeof event.raw === "string";
   const hasError = typeof event.error === "string";
   const ms = typeof event.ms === "number" ? event.ms : undefined;
   const detail = typeof event.detail === "string" ? event.detail : undefined;
-  const next = [...entries];
+  const callId =
+    explicitId ??
+    `${state === "waiting_llm" ? "pending" : state === "llm_done" ? "done" : "err"}-${entries.length}`;
 
-  if (state === "waiting_llm") {
-    const callId = explicitId ?? `pending-${next.length}`;
-    const idx = explicitId
-      ? next.findIndex((e) => e.kind === "llm_call" && e.callId === explicitId)
-      : -1;
-    const entry: LlmCallEntry = {
-      kind: "llm_call",
-      callId,
-      label,
-      model,
-      state: "waiting",
-      detail,
-      request,
-    };
-    if (idx >= 0) {
-      const prev = next[idx] as LlmCallEntry;
-      next[idx] = { ...prev, ...entry, request: request ?? prev.request };
-      return next;
-    }
-    next.push(entry);
-    return next;
-  }
+  const entry: LlmCallEntry = {
+    kind: "llm_call",
+    callId,
+    label,
+    model,
+    state: state === "waiting_llm" ? "waiting" : state === "llm_done" ? "done" : "error",
+    ms,
+    detail,
+    request,
+    response: hasResponse ? event.response : undefined,
+    raw: hasRaw ? String(event.raw) : undefined,
+    error: hasError ? String(event.error) : state === "llm_error" ? detail : undefined,
+  };
 
-  if (state === "llm_done" || state === "llm_error") {
-    let idx = explicitId
-      ? next.findIndex((e) => e.kind === "llm_call" && e.callId === explicitId)
-      : -1;
-    if (idx < 0) {
-      for (let i = next.length - 1; i >= 0; i--) {
-        const e = next[i];
-        if (e.kind === "llm_call" && e.state === "waiting" && e.label === label) {
-          idx = i;
-          break;
-        }
-      }
-    }
-    const prev: LlmCallEntry | null =
-      idx >= 0 && next[idx]?.kind === "llm_call" ? (next[idx] as LlmCallEntry) : null;
-    const callId =
-      explicitId ?? prev?.callId ?? `${state === "llm_done" ? "done" : "err"}-${next.length}`;
-    const entry: LlmCallEntry = {
-      kind: "llm_call",
-      callId,
-      label,
-      model: model || prev?.model || "",
-      state: state === "llm_done" ? "done" : "error",
-      ms,
-      detail,
-      request: request ?? prev?.request,
-      response: hasResponse ? event.response : prev?.response,
-      raw: hasRaw ? String(event.raw) : prev?.raw,
-      error: hasError ? String(event.error) : state === "llm_error" ? detail : prev?.error,
-    };
-    if (idx >= 0) {
-      next[idx] = entry;
-      return next;
-    }
-    next.push(entry);
-    return next;
-  }
-
-  return next;
+  return [...entries, entry];
 }
 
 /** Apply one stream event onto a phase's structured log entries. */
@@ -275,7 +250,7 @@ export function applyStreamEventToEntries(
   }
 
   if (event.type === "status" && typeof event.state === "string" && isLlmStatus(event.state)) {
-    return upsertLlmCall(entries, event);
+    return appendLlmCall(entries, event);
   }
 
   const line = formatStreamEvent(event);
@@ -325,6 +300,10 @@ export function formatStreamEvent(event: StreamEvent): string | null {
   }
   if (event.type === "done") return "✓ done";
   if (event.type === "stopped") return "■ stopped — can resume";
+  if (event.type === "failed") {
+    const msg = typeof event.message === "string" ? event.message : "";
+    return msg ? `✗ failed — ${msg}` : "✗ failed";
+  }
   if (event.type === "resumed") return "▶ resumed";
   if (event.type === "error") {
     const msg = typeof event.message === "string" ? event.message : JSON.stringify(event);

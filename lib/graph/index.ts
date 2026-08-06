@@ -14,7 +14,14 @@ import {
   type MethodProgressRow,
   type NodeRow,
   type QuestionRow,
+  type TopicRow,
 } from "../types";
+
+export interface GraphTopicOption {
+  id: number;
+  name: string;
+  scopeLevel: string;
+}
 
 export interface GraphNode {
   id: number;
@@ -36,8 +43,24 @@ export interface GraphEdge {
 export interface GraphView {
   topicId: number | null;
   topicName: string | null;
+  topics: GraphTopicOption[];
   nodes: GraphNode[];
   edges: GraphEdge[];
+}
+
+export function listGraphTopics(
+  db: Database.Database = getDb()
+): GraphTopicOption[] {
+  const rows = db
+    .prepare(
+      "SELECT id, name, scope_level FROM topics ORDER BY created_at DESC, id DESC"
+    )
+    .all() as Pick<TopicRow, "id" | "name" | "scope_level">[];
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    scopeLevel: r.scope_level,
+  }));
 }
 
 const STATUS_RANK: Record<ItemStatus, number> = {
@@ -69,16 +92,29 @@ function primaryItem(node: NodeRow, covering: ItemState[]): ItemState | undefine
 
 export function getGraphView(
   db: Database.Database = getDb(),
-  now: Date = new Date()
+  now: Date = new Date(),
+  topicIdParam?: number | null
 ): GraphView {
-  const topicId = getPrimaryTopicId(db);
+  const topics = listGraphTopics(db);
+  let topicId =
+    typeof topicIdParam === "number" && Number.isFinite(topicIdParam)
+      ? topicIdParam
+      : null;
+  if (topicId != null && !topics.some((t) => t.id === topicId)) {
+    topicId = null;
+  }
+  if (topicId == null) {
+    topicId = getPrimaryTopicId(db);
+  }
   if (topicId === null) {
-    return { topicId: null, topicName: null, nodes: [], edges: [] };
+    return { topicId: null, topicName: null, topics, nodes: [], edges: [] };
   }
   const topicName =
+    topics.find((t) => t.id === topicId)?.name ??
     (db.prepare("SELECT name FROM topics WHERE id = ?").get(topicId) as
       | { name: string }
-      | undefined)?.name ?? null;
+      | undefined)?.name ??
+    null;
 
   const settings = getSettings(db);
   const state = computeTopicState(topicId, db, now, settings);
@@ -117,7 +153,7 @@ export function getGraphView(
       type: e.type,
     }));
 
-  return { topicId, topicName, nodes, edges };
+  return { topicId, topicName, topics, nodes, edges };
 }
 
 export interface NodeEdgeDetail {

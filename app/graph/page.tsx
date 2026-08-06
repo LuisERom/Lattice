@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import cytoscape, { type Core } from "cytoscape";
 
+interface GraphTopicOption {
+  id: number;
+  name: string;
+  scopeLevel: string;
+}
+
 interface GraphNode {
   id: number;
   name: string;
@@ -19,7 +25,9 @@ interface GraphEdge {
   type: string;
 }
 interface GraphView {
+  topicId: number | null;
   topicName: string | null;
+  topics: GraphTopicOption[];
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
@@ -32,6 +40,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STATUS_LABEL = ["locked", "learning", "known", "mastered"];
+const TOPIC_STORAGE_KEY = "lattice.graphTopicId";
 
 interface NodeDetail {
   id: number;
@@ -71,21 +80,78 @@ interface NodeDetail {
   }[];
 }
 
+function readStoredTopicId(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(TOPIC_STORAGE_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredTopicId(id: number | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (id == null) window.localStorage.removeItem(TOPIC_STORAGE_KEY);
+    else window.localStorage.setItem(TOPIC_STORAGE_KEY, String(id));
+  } catch {
+    // ignore
+  }
+}
+
 export default function GraphPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
+  const [topics, setTopics] = useState<GraphTopicOption[]>([]);
+  const [topicId, setTopicId] = useState<number | null>(null);
+  const [selectionReady, setSelectionReady] = useState(false);
   const [topicName, setTopicName] = useState<string | null>(null);
   const [empty, setEmpty] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<NodeDetail | null>(null);
 
   useEffect(() => {
+    setTopicId(readStoredTopicId());
+    setSelectionReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!selectionReady) return;
     let cancelled = false;
     (async () => {
-      const data = (await (await fetch("/api/graph")).json()) as GraphView;
-      if (cancelled || !containerRef.current) return;
+      setLoading(true);
+      setDetail(null);
+      cyRef.current?.destroy();
+      cyRef.current = null;
+
+      const qs =
+        topicId != null ? `?topicId=${encodeURIComponent(String(topicId))}` : "";
+      const data = (await (await fetch(`/api/graph${qs}`)).json()) as GraphView;
+      if (cancelled) return;
+
+      setTopics(data.topics || []);
       setTopicName(data.topicName);
+      if (data.topicId != null && data.topicId !== topicId) {
+        // Persist resolved default without refetching (ids already match next paint).
+        writeStoredTopicId(data.topicId);
+        setTopicId(data.topicId);
+        return;
+      }
+
       if (data.nodes.length === 0) {
         setEmpty(true);
+        setLoading(false);
+        return;
+      }
+      setEmpty(false);
+
+      // Wait a tick so the container is mounted after empty→graph switch.
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      if (cancelled || !containerRef.current) {
+        setLoading(false);
         return;
       }
 
@@ -158,7 +224,11 @@ export default function GraphPage() {
           },
           {
             selector: "edge[?prereq]",
-            style: { "line-color": "#5b6b8c", "target-arrow-color": "#5b6b8c", opacity: 0.9 },
+            style: {
+              "line-color": "#5b6b8c",
+              "target-arrow-color": "#5b6b8c",
+              opacity: 0.9,
+            },
           },
         ],
         layout: { name: "cose", animate: false, padding: 30, nodeRepulsion: 9000 },
@@ -176,26 +246,54 @@ export default function GraphPage() {
       });
 
       cyRef.current = cy;
+      setLoading(false);
     })();
     return () => {
       cancelled = true;
       cyRef.current?.destroy();
       cyRef.current = null;
     };
-  }, []);
+  }, [topicId, selectionReady]);
+
+  function onSelectTopic(next: string) {
+    const id = Number(next);
+    if (!Number.isFinite(id)) return;
+    writeStoredTopicId(id);
+    setTopicId(id);
+  }
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
-          Graph{topicName ? <span className="text-[var(--muted)]"> — {topicName}</span> : null}
-        </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold">Graph</h1>
+          {topics.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
+              <span className="sr-only">Topic</span>
+              <select
+                value={topicId ?? ""}
+                onChange={(e) => onSelectTopic(e.target.value)}
+                className="max-w-xs rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]"
+              >
+                {topics.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {topicName && topics.length <= 1 && (
+            <span className="text-[var(--muted)]">— {topicName}</span>
+          )}
+        </div>
         <Legend />
       </div>
 
-      {empty ? (
+      {empty && !loading ? (
         <p className="mt-6 text-[var(--muted)]">
-          No topic imported yet. Run <code>npm run import</code> to load the seed.
+          No topic imported yet. Finish a generation and import it, or run{" "}
+          <code>npm run import</code>.
         </p>
       ) : (
         <div className="mt-4 flex gap-4">
