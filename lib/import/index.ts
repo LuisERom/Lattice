@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { getDb } from "../db";
 import { cardToRow, newCard } from "../fsrs";
 import { computeCentrality, computeDifficulty, type SimpleEdge } from "./derived";
-import type { ContractMap } from "./contract";
+import type { ContractMap, SourceSupport, Verification } from "./contract";
 
 export interface ImportResult {
   topicId: number;
@@ -12,14 +12,33 @@ export interface ImportResult {
     items: number;
     questions: number;
     reviewStates: number;
+    sources: number;
+    nodeSources: number;
   };
+}
+
+function normalizeVerification(value: unknown): Verification {
+  return value === "grounded" ? "grounded" : "unverified";
+}
+
+function normalizeSupport(value: unknown): SourceSupport {
+  if (
+    value === "supports" ||
+    value === "partial" ||
+    value === "related" ||
+    value === "contradicts"
+  ) {
+    return value;
+  }
+  return "supports";
 }
 
 /**
  * Import a generation contract map into SQLite. Inserts topic, nodes, edges,
- * items, and questions; computes difficulty + centrality from graph structure;
- * and creates one ts-fsrs "new" review_state per item. Runs in a single
- * transaction. method_progress rows are created lazily on first review.
+ * items, questions, and optional grounding sources; computes difficulty +
+ * centrality from graph structure; and creates one ts-fsrs "new" review_state
+ * per item. Runs in a single transaction. method_progress rows are created
+ * lazily on first review.
  */
 export function importMap(
   map: ContractMap,
@@ -41,9 +60,10 @@ export function importMap(
     // --- nodes ---
     const insNode = db.prepare(
       "INSERT INTO nodes (topic_id, type, name, description, verification, grounding_sensitive) " +
-        "VALUES (?, ?, ?, ?, 'unverified', ?)"
+        "VALUES (?, ?, ?, ?, ?, ?)"
     );
     const nodeIdByRef = new Map<string, number>();
+    const nodeByRef = new Map<string, (typeof map.nodes)[number]>();
     for (const n of map.nodes) {
       if (nodeIdByRef.has(n.ref)) {
         throw new Error(`Duplicate node ref "${n.ref}"`);
@@ -53,9 +73,11 @@ export function importMap(
         n.type,
         n.name,
         n.description ?? "",
+        normalizeVerification(n.verification),
         n.grounding_sensitive ? 1 : 0
       ).lastInsertRowid as number;
       nodeIdByRef.set(n.ref, id);
+      nodeByRef.set(n.ref, n);
     }
 
     const resolveNode = (ref: string): number => {
@@ -63,6 +85,67 @@ export function importMap(
       if (id === undefined) throw new Error(`Unknown node ref "${ref}"`);
       return id;
     };
+
+    // --- sources + node_sources (optional; additive) ---
+    const sourceIdByRef = new Map<string, number>();
+    const mapSources = map.sources ?? [];
+    const insSource = db.prepare(
+      "INSERT OR IGNORE INTO sources (url, title, publisher, retrieved_at, quote) VALUES (?, ?, ?, ?, ?)"
+    );
+    const getSourceIdByUrl = db.prepare(
+      "SELECT id FROM sources WHERE url = ?"
+    );
+    for (const s of mapSources) {
+      if (sourceIdByRef.has(s.ref)) {
+        throw new Error(`Duplicate source ref "${s.ref}"`);
+      }
+      const url = (s.url ?? "").trim();
+      if (!url) {
+        throw new Error(`Source "${s.ref}" is missing url`);
+      }
+      insSource.run(
+        url,
+        s.title ?? url,
+        s.publisher ?? "",
+        s.retrieved_at ?? new Date().toISOString(),
+        s.quote ?? ""
+      );
+      const row = getSourceIdByUrl.get(url) as { id: number } | undefined;
+      if (!row) {
+        throw new Error(`Failed to resolve source id for "${url}"`);
+      }
+      sourceIdByRef.set(s.ref, row.id);
+    }
+
+    const explicitLinks = map.node_sources ?? [];
+    const fallbackLinks = map.nodes.flatMap((n) =>
+      (n.source_refs ?? []).map((source_ref) => ({
+        node_ref: n.ref,
+        source_ref,
+        support: "supports" as SourceSupport,
+      }))
+    );
+    const mergedLinks = [...explicitLinks, ...fallbackLinks];
+    const insNodeSource = db.prepare(
+      "INSERT INTO node_sources (node_id, source_id, support) VALUES (?, ?, ?) " +
+        "ON CONFLICT(node_id, source_id) DO UPDATE SET support = excluded.support"
+    );
+    const nodeSourcePairs = new Set<string>();
+    for (const link of mergedLinks) {
+      const nodeId = resolveNode(link.node_ref);
+      const sourceId = sourceIdByRef.get(link.source_ref);
+      if (sourceId === undefined) {
+        throw new Error(
+          `Unknown source ref "${link.source_ref}" for node "${link.node_ref}"`
+        );
+      }
+      insNodeSource.run(
+        nodeId,
+        sourceId,
+        normalizeSupport(link.support)
+      );
+      nodeSourcePairs.add(`${nodeId}:${sourceId}`);
+    }
 
     // --- edges ---
     const insEdge = db.prepare(
@@ -95,7 +178,7 @@ export function importMap(
     );
     const insQuestion = db.prepare(
       "INSERT INTO test_questions (item_id, method, prompt, expected_answer, options, verification, grounding_sensitive) " +
-        "VALUES (?, ?, ?, ?, ?, 'unverified', 0)"
+        "VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     const insReviewState = db.prepare(
       "INSERT INTO review_state " +
@@ -107,6 +190,9 @@ export function importMap(
     let reviewStateCount = 0;
     for (const it of map.items) {
       const memberIds = it.member_node_refs.map(resolveNode);
+      const inheritedGrounding = it.member_node_refs.some(
+        (ref) => !!nodeByRef.get(ref)?.grounding_sensitive
+      );
       let edgeId: number | null = null;
       if (it.edge_ref) {
         const eid = edgeIdByRef.get(it.edge_ref);
@@ -141,7 +227,11 @@ export function importMap(
           q.method,
           q.prompt,
           q.expected_answer ?? "",
-          q.options ? JSON.stringify(q.options) : null
+          q.options ? JSON.stringify(q.options) : null,
+          normalizeVerification(q.verification),
+          q.grounding_sensitive != null
+            ? (q.grounding_sensitive ? 1 : 0)
+            : (inheritedGrounding ? 1 : 0)
         );
         questionCount++;
       }
@@ -169,6 +259,8 @@ export function importMap(
         items: map.items.length,
         questions: questionCount,
         reviewStates: reviewStateCount,
+        sources: sourceIdByRef.size,
+        nodeSources: nodeSourcePairs.size,
       },
     };
   });

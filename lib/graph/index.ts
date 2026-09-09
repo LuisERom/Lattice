@@ -17,6 +17,12 @@ import {
   type TopicRow,
 } from "../types";
 
+export interface GraphTopic {
+  id: number;
+  name: string;
+  scopeLevel?: string;
+}
+
 export interface GraphTopicOption {
   id: number;
   name: string;
@@ -40,12 +46,26 @@ export interface GraphEdge {
   type: string;
 }
 
+/** A cross-topic edge as seen from the currently viewed topic. */
+export interface GraphBridge {
+  edgeId: number;
+  edgeType: string;
+  localNodeId: number;
+  /** Direction relative to the local node. */
+  direction: "in" | "out";
+  remoteNodeId: number;
+  remoteNodeName: string;
+  remoteTopicId: number;
+  remoteTopicName: string;
+}
+
 export interface GraphView {
+  topics: GraphTopic[];
   topicId: number | null;
   topicName: string | null;
-  topics: GraphTopicOption[];
   nodes: GraphNode[];
   edges: GraphEdge[];
+  bridges: GraphBridge[];
 }
 
 export function listGraphTopics(
@@ -90,6 +110,15 @@ function primaryItem(node: NodeRow, covering: ItemState[]): ItemState | undefine
   );
 }
 
+export function listTopics(db: Database.Database = getDb()): GraphTopic[] {
+  return (
+    db.prepare("SELECT id, name FROM topics ORDER BY id").all() as {
+      id: number;
+      name: string;
+    }[]
+  ).map((t) => ({ id: t.id, name: t.name }));
+}
+
 export function getGraphView(
   db: Database.Database = getDb(),
   now: Date = new Date(),
@@ -99,22 +128,14 @@ export function getGraphView(
   let topicId =
     typeof topicIdParam === "number" && Number.isFinite(topicIdParam)
       ? topicIdParam
-      : null;
+      : getPrimaryTopicId(db);
   if (topicId != null && !topics.some((t) => t.id === topicId)) {
-    topicId = null;
-  }
-  if (topicId == null) {
-    topicId = getPrimaryTopicId(db);
+    topicId = topics[0]?.id ?? null;
   }
   if (topicId === null) {
-    return { topicId: null, topicName: null, topics, nodes: [], edges: [] };
+    return { topicId: null, topicName: null, topics, nodes: [], edges: [], bridges: [] };
   }
-  const topicName =
-    topics.find((t) => t.id === topicId)?.name ??
-    (db.prepare("SELECT name FROM topics WHERE id = ?").get(topicId) as
-      | { name: string }
-      | undefined)?.name ??
-    null;
+  const topicName = topics.find((t) => t.id === topicId)?.name ?? null;
 
   const settings = getSettings(db);
   const state = computeTopicState(topicId, db, now, settings);
@@ -142,18 +163,53 @@ export function getGraphView(
     };
   });
 
-  const edges = (db.prepare("SELECT * FROM edges").all() as EdgeRow[])
-    .filter(
-      (e) => nodeIds.has(e.source_node_id) && nodeIds.has(e.target_node_id)
-    )
-    .map((e) => ({
-      id: e.id,
-      source: e.source_node_id,
-      target: e.target_node_id,
-      type: e.type,
-    }));
+  const allEdges = db.prepare("SELECT * FROM edges").all() as EdgeRow[];
+  const topicByNodeId = new Map<number, number>();
+  const nameByNodeId = new Map<number, string>();
+  const nameByTopicId = new Map(topics.map((t) => [t.id, t.name]));
+  for (const row of db
+    .prepare("SELECT id, topic_id, name FROM nodes")
+    .all() as Pick<NodeRow, "id" | "topic_id" | "name">[]) {
+    topicByNodeId.set(row.id, row.topic_id);
+    nameByNodeId.set(row.id, row.name);
+  }
 
-  return { topicId, topicName, topics, nodes, edges };
+  const edges: GraphEdge[] = [];
+  const bridges: GraphBridge[] = [];
+
+  for (const e of allEdges) {
+    const srcIn = nodeIds.has(e.source_node_id);
+    const tgtIn = nodeIds.has(e.target_node_id);
+    if (srcIn && tgtIn) {
+      edges.push({
+        id: e.id,
+        source: e.source_node_id,
+        target: e.target_node_id,
+        type: e.type,
+      });
+      continue;
+    }
+    if (!srcIn && !tgtIn) continue;
+
+    // Exactly one endpoint is in this topic → cross-topic bridge.
+    const localNodeId = srcIn ? e.source_node_id : e.target_node_id;
+    const remoteNodeId = srcIn ? e.target_node_id : e.source_node_id;
+    const remoteTopicId = topicByNodeId.get(remoteNodeId);
+    if (remoteTopicId == null || remoteTopicId === topicId) continue;
+
+    bridges.push({
+      edgeId: e.id,
+      edgeType: e.type,
+      localNodeId,
+      direction: srcIn ? "out" : "in",
+      remoteNodeId,
+      remoteNodeName: nameByNodeId.get(remoteNodeId) ?? `#${remoteNodeId}`,
+      remoteTopicId,
+      remoteTopicName: nameByTopicId.get(remoteTopicId) ?? `Topic ${remoteTopicId}`,
+    });
+  }
+
+  return { topics, topicId, topicName, nodes, edges, bridges };
 }
 
 export interface NodeEdgeDetail {
@@ -178,6 +234,16 @@ export interface NodeItemDetail {
   methods: string[];
 }
 
+export interface NodeSourceDetail {
+  sourceId: number;
+  url: string;
+  title: string;
+  publisher: string;
+  retrievedAt: string;
+  quote: string;
+  support: string;
+}
+
 export interface NodeDetail {
   id: number;
   name: string;
@@ -189,6 +255,7 @@ export interface NodeDetail {
   grounding_sensitive: boolean;
   locked: boolean;
   known: boolean;
+  sources: NodeSourceDetail[];
   edges: NodeEdgeDetail[];
   items: NodeItemDetail[];
 }
@@ -233,6 +300,30 @@ export function getNodeDetail(
   const covering = [...state.items.values()].filter((i) =>
     i.memberNodeIds.includes(nodeId)
   );
+  const sourceRows = db
+    .prepare(
+      "SELECT s.id, s.url, s.title, s.publisher, s.retrieved_at, s.quote, ns.support " +
+        "FROM node_sources ns JOIN sources s ON s.id = ns.source_id " +
+        "WHERE ns.node_id = ? ORDER BY s.retrieved_at DESC, s.id DESC"
+    )
+    .all(nodeId) as {
+    id: number;
+    url: string;
+    title: string;
+    publisher: string;
+    retrieved_at: string;
+    quote: string;
+    support: string;
+  }[];
+  const sources: NodeSourceDetail[] = sourceRows.map((r) => ({
+    sourceId: r.id,
+    url: r.url,
+    title: r.title,
+    publisher: r.publisher,
+    retrievedAt: r.retrieved_at,
+    quote: r.quote,
+    support: r.support,
+  }));
   const items: NodeItemDetail[] = covering.map((i) => {
     const mp = db
       .prepare("SELECT * FROM method_progress WHERE item_id = ?")
@@ -267,6 +358,7 @@ export function getNodeDetail(
     grounding_sensitive: !!node.grounding_sensitive,
     locked: nodeState?.locked ?? false,
     known: nodeState?.known ?? false,
+    sources,
     edges,
     items,
   };

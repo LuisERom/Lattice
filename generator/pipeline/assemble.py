@@ -19,20 +19,40 @@ def build_contract(
         "scope_description": scope["scope_description"],
         "scope_level": scope["scope_level"],
     }
+    node_links = list(detailed_payload.get("node_sources") or [])
+    source_refs_by_node: dict[str, list[str]] = {}
+    for link in node_links:
+        nref = str(link.get("node_ref") or "")
+        sref = str(link.get("source_ref") or "")
+        if not nref or not sref:
+            continue
+        source_refs_by_node.setdefault(nref, []).append(sref)
+
     nodes = []
     for n in detailed_payload.get("nodes") or []:
-        nodes.append(
-            {
-                "ref": n["ref"],
-                "type": n["type"],
-                "name": n["name"],
-                "description": n.get("description", ""),
-                "grounding_sensitive": bool(n.get("grounding_sensitive", False)),
-            }
-        )
+        refs = source_refs_by_node.get(str(n.get("ref") or ""), [])
+        node = {
+            "ref": n["ref"],
+            "type": n["type"],
+            "name": n["name"],
+            "description": n.get("description", ""),
+            "verification": n.get("verification", "unverified"),
+            "grounding_sensitive": bool(n.get("grounding_sensitive", False)),
+        }
+        if refs:
+            node["source_refs"] = refs
+        nodes.append(node)
     edges = list(procedures_payload.get("edges") or [])
     items = list(items_payload.get("items") or [])
-    doc = {"topic": topic, "nodes": nodes, "edges": edges, "items": items}
+    sources = list(detailed_payload.get("sources") or [])
+    doc = {
+        "topic": topic,
+        "nodes": nodes,
+        "edges": edges,
+        "items": items,
+        "sources": sources,
+        "node_sources": node_links,
+    }
     # Safety net: drop concepts that still have zero edges (and their items).
     doc, removed = prune_contract(doc)
     if removed:
@@ -55,6 +75,14 @@ def write_review_report(path: Path, audit_payload: dict[str, Any]) -> None:
     detail_flags = list(audit_payload.get("detail_flags") or [])
     lines.append(f"- Node audit flags: {len(detail_flags)}")
     for f in detail_flags[:50]:
+        ref = f.get("ref", "?")
+        reason = f.get("reason", "")
+        sev = f.get("severity", "unknown")
+        lines.append(f"  - {ref} [{sev}] {reason}")
+    lines.append("")
+    grounding_flags = list(audit_payload.get("grounding_flags") or [])
+    lines.append(f"- Grounding unresolved flags: {len(grounding_flags)}")
+    for f in grounding_flags[:50]:
         ref = f.get("ref", "?")
         reason = f.get("reason", "")
         sev = f.get("severity", "unknown")

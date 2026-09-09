@@ -2,8 +2,9 @@
 """Doc 4 staged generation pipeline orchestrator.
 
 Generates a topic map through checkpointed phases:
-0 scope, A scaffold, B seed goals, C prereq expand, D detail, E lateral edges,
-F procedures, G items, H global audit. Outputs the Doc 3 contract JSON + review report.
+0 scope, A scaffold, B seed goals, C prereq expand, D detail, D2 ground,
+E lateral edges, F procedures, G items, H global audit. Outputs the Doc 3
+contract JSON + review report.
 """
 from __future__ import annotations
 
@@ -21,12 +22,13 @@ from pipeline.connectivity import prune_unlinked_concepts
 from pipeline.detail import run_detailing
 from pipeline.edges import run_edges
 from pipeline.expand import run_expand
+from pipeline.grounding import run_grounding
 from pipeline.items import run_items
 from pipeline.procedures import run_procedures
 from pipeline.scaffold import run_scaffold
 from pipeline.scope import run_scope_interview, scope_from_args
 from pipeline.seeds import run_seeds
-from pipeline.stream import set_stream_slug, stream_step, stream_write
+from pipeline.stream import reset_stream_slug, set_stream_slug, stream_step, stream_write
 
 PHASES = [
     "0_scope",
@@ -34,6 +36,7 @@ PHASES = [
     "B_seeds",
     "C_expand",
     "D_detailed",
+    "D2_ground",
     "E_edges",
     "F_procedures",
     "G_items",
@@ -49,6 +52,7 @@ def _dry_run_prompts(subject: str, scope_level: str, scope_description: str | No
     print(" - B_seeds: small per-section goal seeds (procedures + capstones), not a concept dump.")
     print(" - C_expand: BFS prerequisite expansion + embed-merge (nodes + prerequisite_of edges).")
     print(" - D_detailed: detail node descriptions/type/grounding/confidence + auditor flags.")
+    print(" - D2_ground: selectively source risky claims, set verification, emit citations.")
     print(" - E_edges: keep prereq spine; add lateral edges; critic + coverage (no isolates).")
     print(" - F_procedures: ensure ordered part_of composition structure for procedures.")
     print(" - (prune): drop concept nodes that still have zero edges after F.")
@@ -117,7 +121,7 @@ def main() -> int:
         print(f"Resume mode enabled for slug '{slug}'.")
 
     artifacts: dict[str, dict[str, Any]] = {}
-    set_stream_slug(slug)
+    stream_slug_token = set_stream_slug(slug)
 
     try:
         return _run_phases(subject, slug, artifacts, args, from_idx)
@@ -130,6 +134,8 @@ def main() -> int:
         # Not "done" — that means a finished successful pipeline.
         stream_write(slug, {"type": "failed", "message": str(exc)})
         return 2
+    finally:
+        reset_stream_slug(stream_slug_token)
 
 
 def _run_phases(
@@ -145,6 +151,7 @@ def _run_phases(
         "B_seeds": "In each area, pick a few end goals — the things a learner should eventually be able to do.",
         "C_expand": "Working backward from those goals, find what must be learned first, step by step.",
         "D_detailed": "Write a clear explanation for every concept that made it onto the map.",
+        "D2_ground": "Attach sources to risky claims, and leave the rest explicitly unverified.",
         "E_edges": "Add useful links between related ideas (beyond just “learn this before that”).",
         "F_procedures": "For multi-step skills, list the steps in the order they should be done.",
         "G_items": "Create practice questions so each concept and skill can be reviewed later.",
@@ -236,14 +243,26 @@ def _run_phases(
     else:
         artifacts[phase] = _load_or_fail(slug, phase)
 
+    # D2_ground
+    phase = "D2_ground"
+    if _should_run_phase(slug, phase, 5, from_idx):
+        _begin_phase(phase)
+        payload = run_grounding(
+            artifacts["0_scope"], artifacts["D_detailed"], model=args.model, slug=slug
+        )
+        write_phase(slug, phase, payload)
+        artifacts[phase] = payload
+    else:
+        artifacts[phase] = _load_or_fail(slug, phase)
+
     # E_edges — lateral links on top of the prereq spine
     phase = "E_edges"
-    if _should_run_phase(slug, phase, 5, from_idx):
+    if _should_run_phase(slug, phase, 6, from_idx):
         _begin_phase(phase)
         payload = run_edges(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
-            artifacts["D_detailed"],
+            artifacts["D2_ground"],
             model=args.model,
             slug=slug,
             prior_edges_payload=artifacts["C_expand"],
@@ -255,12 +274,12 @@ def _run_phases(
 
     # F_procedures
     phase = "F_procedures"
-    if _should_run_phase(slug, phase, 6, from_idx):
+    if _should_run_phase(slug, phase, 7, from_idx):
         _begin_phase(phase)
         payload = run_procedures(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
-            artifacts["D_detailed"],
+            artifacts["D2_ground"],
             artifacts["E_edges"],
             model=args.model,
             slug=slug,
@@ -272,7 +291,7 @@ def _run_phases(
 
     # Safety net: drop concepts that still have no edges
     pruned = prune_unlinked_concepts(
-        list(artifacts["D_detailed"].get("nodes") or []),
+        list(artifacts["D2_ground"].get("nodes") or []),
         list(artifacts["F_procedures"].get("edges") or []),
         dict(artifacts["F_procedures"].get("procedure_members") or {}),
     )
@@ -280,7 +299,7 @@ def _run_phases(
     if removed:
         print(f"Pruned {len(removed)} unlinked concept(s) after procedures.")
         stream_write(slug, {"type": "prune_unlinked", "removed": removed})
-        artifacts["D_detailed"] = {**artifacts["D_detailed"], "nodes": pruned["nodes"]}
+        artifacts["D2_ground"] = {**artifacts["D2_ground"], "nodes": pruned["nodes"]}
         artifacts["F_procedures"] = {
             **artifacts["F_procedures"],
             "edges": pruned["edges"],
@@ -291,11 +310,11 @@ def _run_phases(
 
     # G_items
     phase = "G_items"
-    if _should_run_phase(slug, phase, 7, from_idx):
+    if _should_run_phase(slug, phase, 8, from_idx):
         _begin_phase(phase)
         payload = run_items(
             artifacts["0_scope"],
-            artifacts["D_detailed"],
+            artifacts["D2_ground"],
             artifacts["F_procedures"],
             model_fast=args.fast_model,
             concurrency=args.concurrency,
@@ -309,18 +328,19 @@ def _run_phases(
     # H_audit + assemble
     contract_doc = build_contract(
         artifacts["0_scope"],
-        artifacts["D_detailed"],
+        artifacts["D2_ground"],
         artifacts["F_procedures"],
         artifacts["G_items"],
     )
     pruned_unlinked = list(contract_doc.pop("_pruned_unlinked", None) or removed)
-    if _should_run_phase(slug, "H_audit", 8, from_idx):
+    if _should_run_phase(slug, "H_audit", 9, from_idx):
         _begin_phase("H_audit")
         audit_payload = run_global_audit(
             artifacts["0_scope"],
             artifacts["A_scaffold"],
             contract_doc,
-            detail_flags=list(artifacts["D_detailed"].get("flags") or []),
+            detail_flags=list(artifacts["D2_ground"].get("flags") or []),
+            grounding_flags=list(artifacts["D2_ground"].get("grounding_flags") or []),
             model=args.model,
             slug=slug,
         )

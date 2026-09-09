@@ -11,6 +11,7 @@
     "db:init": "tsx scripts/init-db.ts",
     "db:reset": "tsx scripts/init-db.ts --reset",
     "import": "tsx scripts/import-cli.ts",
+    "verify:m7": "tsx scripts/verify-m7.ts",
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {

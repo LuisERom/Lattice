@@ -25,6 +25,9 @@ export type Method =
   | "relational"
   | "recognition";
 
+export type Verification = "unverified" | "grounded";
+export type SourceSupport = "supports" | "partial" | "related" | "contradicts";
+
 export interface ContractTopic {
   name: string;
   scope_description: string;
@@ -36,7 +39,9 @@ export interface ContractNode {
   type: NodeType;
   name: string;
   description: string;
+  verification?: Verification;
   grounding_sensitive?: boolean;
+  source_refs?: string[];
 }
 
 export interface ContractEdge {
@@ -52,6 +57,23 @@ export interface ContractQuestion {
   prompt: string;
   expected_answer: string;
   options?: string[] | null;
+  verification?: Verification;
+  grounding_sensitive?: boolean;
+}
+
+export interface ContractSource {
+  ref: string;
+  url: string;
+  title: string;
+  publisher?: string;
+  retrieved_at?: string;
+  quote?: string;
+}
+
+export interface ContractNodeSource {
+  node_ref: string;
+  source_ref: string;
+  support?: SourceSupport;
 }
 
 export interface ContractItem {
@@ -68,4 +90,6 @@ export interface ContractMap {
   nodes: ContractNode[];
   edges: ContractEdge[];
   items: ContractItem[];
+  sources?: ContractSource[];
+  node_sources?: ContractNodeSource[];
 }

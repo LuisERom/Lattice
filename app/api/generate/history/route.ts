@@ -1,14 +1,34 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  statSync,
+} from "node:fs";
 import path from "node:path";
 import { type NextRequest } from "next/server";
-import type { GenerationRunSummary } from "@/lib/generate/history";
 import {
+  type ApiCallDetailResponse,
   GENERATION_PHASES,
+  type GenerationPhaseOutline,
+  type GenerationRunSummary,
+  type PhaseDetailResponse,
+  type RunOutlineResponse,
+  summarizePhaseOutcome,
+} from "@/lib/generate/history";
+import {
   LEGACY_GENERATION_PHASES,
+  PHASE_DESCRIPTIONS,
+  buildPhaseTimeline,
   groupStreamEventsByPhase,
+  pairApiCalls,
   parseStreamNdjson,
   sortPhases,
-  type PhaseLogGroup,
+  type LogEntry,
+  type PairedApiCall,
+  type StreamEvent,
 } from "@/lib/generate/stream-log";
 import { artifactsDir, generatedTopicPath } from "@/lib/paths";
 
@@ -103,7 +123,44 @@ function loadRestorableScope(
   };
 }
 
-function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | null {
+type RunSummaryOptions = {
+  fullStream: boolean;
+  providedEvents?: StreamEvent[];
+};
+
+function readTailEvents(streamPath: string, maxBytes = 16_384): StreamEvent[] {
+  if (!existsSync(streamPath)) return [];
+  const size = statSync(streamPath).size;
+  if (size <= 0) return [];
+  const start = Math.max(0, size - maxBytes);
+  const length = size - start;
+  if (length <= 0) return [];
+
+  const fd = openSync(streamPath, "r");
+  try {
+    const buf = Buffer.alloc(length);
+    const bytesRead = readSync(fd, buf, 0, length, start);
+    let raw = buf.toString("utf8", 0, bytesRead);
+    if (start > 0) {
+      const newlineIdx = raw.indexOf("\n");
+      raw = newlineIdx >= 0 ? raw.slice(newlineIdx + 1) : "";
+    }
+    return parseStreamNdjson(raw);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function readStreamEvents(streamPath: string): StreamEvent[] {
+  if (!existsSync(streamPath)) return [];
+  return parseStreamNdjson(readFileSync(streamPath, "utf8"));
+}
+
+function summarizeRun(
+  slug: string,
+  dirPath: string,
+  options: RunSummaryOptions
+): GenerationRunSummary | null {
   const scopeData = readJsonSafe<ScopeFile>(path.join(dirPath, "0_scope.json"));
   const name = scopeData?.scope?.name?.trim() || slug;
 
@@ -115,46 +172,48 @@ function summarizeRun(slug: string, dirPath: string): GenerationRunSummary | nul
 
   const streamPath = path.join(dirPath, "stream.ndjson");
   const isLive = existsSync(path.join(dirPath, "run.pid"));
-  let eventCount = 0;
-  let status: GenerationRunSummary["status"] = "in_progress";
+  let eventCount: number | null = null;
   let lastPhase: string | null = phasesCompleted.at(-1) ?? null;
+  let hasDone = false;
+  let hasError = false;
+  let hasFailed = false;
+  let hasStopped = false;
 
   if (existsSync(streamPath)) {
-    const raw = readFileSync(streamPath, "utf8");
-    const events = parseStreamNdjson(raw);
-    eventCount = events.length;
+    const events =
+      options.providedEvents ??
+      (options.fullStream ? readStreamEvents(streamPath) : readTailEvents(streamPath));
+    if (options.fullStream) {
+      eventCount = events.length;
+    }
     for (const event of events) {
       if (event.type === "phase" && typeof event.name === "string") {
         lastPhase = event.name;
       }
+      if (event.type === "done") hasDone = true;
+      if (event.type === "error") hasError = true;
+      if (event.type === "failed") hasFailed = true;
+      if (event.type === "stopped") hasStopped = true;
     }
-    const hasDone = events.some((e) => e.type === "done");
-    const hasFailed = events.some((e) => e.type === "failed");
-    const hasStopped = events.some((e) => e.type === "stopped");
-    const hasError = events.some((e) => e.type === "error");
-    const finishedAudit = phasesCompleted.includes("H_audit");
-    if (isLive) {
-      // Process still running — never call this failed mid-flight.
-      status = "in_progress";
-    } else if (hasDone && finishedAudit && !hasFailed) {
-      // Successful pipeline end only: final audit checkpoint + done event.
-      status = "completed";
-    } else if (
-      hasFailed ||
-      hasError ||
-      hasStopped ||
-      hasDone || // done without H_audit = aborted/old fatal path
-      phasesCompleted.length > 0 ||
-      eventCount > 0
-    ) {
-      status = "failed";
-    }
-  } else if (isLive) {
+  }
+
+  let status: GenerationRunSummary["status"] = "in_progress";
+  const finishedAudit = phasesCompleted.includes("H_audit");
+  if (isLive) {
     status = "in_progress";
-  } else if (phasesCompleted.includes("H_audit")) {
+  } else if (hasDone && finishedAudit && !hasFailed) {
     status = "completed";
-  } else if (phasesCompleted.length > 0) {
+  } else if (
+    hasFailed ||
+    hasError ||
+    hasStopped ||
+    hasDone ||
+    phasesCompleted.length > 0 ||
+    (eventCount ?? 0) > 0
+  ) {
     status = "failed";
+  } else if (finishedAudit) {
+    status = "completed";
   }
 
   const ts = slugTimestamp(slug);
@@ -184,7 +243,7 @@ function listRuns(): GenerationRunSummary[] {
   const runs: GenerationRunSummary[] = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory() || !safeSlug(entry.name)) continue;
-    const summary = summarizeRun(entry.name, path.join(root, entry.name));
+    const summary = summarizeRun(entry.name, path.join(root, entry.name), { fullStream: false });
     if (summary) runs.push(summary);
   }
 
@@ -193,54 +252,157 @@ function listRuns(): GenerationRunSummary[] {
     const bTs = b.startedAt ? Date.parse(b.startedAt) : Date.parse(b.updatedAt);
     return bTs - aTs;
   });
-  return runs;
+  return runs.slice(0, 20);
 }
 
-function loadRunDetail(slug: string): {
+type LoadedRun = {
+  slug: string;
+  dirPath: string;
   summary: GenerationRunSummary;
+  events: StreamEvent[];
   scope: RestorableScope;
-  phases: PhaseLogGroup[];
-} | null {
+};
+
+function loadRun(slug: string): LoadedRun | null {
   if (!safeSlug(slug)) return null;
   const dirPath = path.join(artifactsRoot(), slug);
   if (!existsSync(dirPath)) return null;
 
-  const summary = summarizeRun(slug, dirPath);
-  if (!summary) return null;
-  const scope = loadRestorableScope(dirPath, summary);
-
   const streamPath = path.join(dirPath, "stream.ndjson");
-  if (!existsSync(streamPath)) {
-    return { summary, scope, phases: [] };
-  }
+  const events = readStreamEvents(streamPath);
+  const summary = summarizeRun(slug, dirPath, { fullStream: true, providedEvents: events });
+  if (!summary) return null;
+  return { slug, dirPath, summary, events, scope: loadRestorableScope(dirPath, summary) };
+}
 
-  const events = parseStreamNdjson(readFileSync(streamPath, "utf8"));
-  // History UI already shows phase title + description; skip redundant banners.
-  const phases = groupStreamEventsByPhase(events, { omitPhaseBanners: true }).filter(
-    (g) => PHASE_SET.has(g.phase)
-  );
-  return { summary, scope, phases };
+function readPhaseCheckpoint(runDir: string, phase: string): unknown {
+  return readJsonSafe(path.join(runDir, `${phase}.json`));
+}
+
+function buildRunOutline(run: LoadedRun): RunOutlineResponse & { scope: RestorableScope } {
+  const calls = pairApiCalls(run.events);
+  const phases: GenerationPhaseOutline[] = GENERATION_PHASES.map((phase) => {
+    const apiCallCount = calls.filter((call) => call.phase === phase).length;
+    const phasePayload = readPhaseCheckpoint(run.dirPath, phase);
+    return {
+      phase,
+      description: PHASE_DESCRIPTIONS[phase] || "",
+      completed: run.summary.phasesCompleted.includes(phase),
+      apiCallCount,
+      outcome: summarizePhaseOutcome(phase, phasePayload),
+    };
+  });
+  return { summary: run.summary, phases, scope: run.scope };
+}
+
+function phaseEntries(events: StreamEvent[], phase: string): LogEntry[] {
+  const groups = groupStreamEventsByPhase(events, { omitPhaseBanners: true });
+  return groups.find((g) => g.phase === phase)?.entries ?? [];
+}
+
+function buildPhaseDetail(run: LoadedRun, phase: string): PhaseDetailResponse & {
+  entries: LogEntry[];
+  lines: string[];
+  count: number;
+} {
+  const phasePayload = readPhaseCheckpoint(run.dirPath, phase);
+  const entries = phaseEntries(run.events, phase);
+  return {
+    summary: run.summary,
+    phase,
+    description: PHASE_DESCRIPTIONS[phase] || "",
+    completed: run.summary.phasesCompleted.includes(phase),
+    outcome: summarizePhaseOutcome(phase, phasePayload),
+    timeline: buildPhaseTimeline(run.events, phase),
+    entries,
+    lines: entries.map((e) => (e.kind === "llm_call" ? e.label : e.text)),
+    count: entries.length,
+  };
+}
+
+function findApiCall(run: LoadedRun, phase: string, callId: string): PairedApiCall | null {
+  const calls = pairApiCalls(run.events).filter((call) => call.phase === phase);
+  for (const call of calls) {
+    if (call.id === callId || call.callId === callId) return call;
+  }
+  return null;
+}
+
+function callDetailResponse(
+  run: LoadedRun,
+  phase: string,
+  call: PairedApiCall
+): ApiCallDetailResponse {
+  const doneOrError = call.errorEvent || call.doneEvent;
+  const startMessages = Array.isArray(call.startEvent?.messages)
+    ? call.startEvent.messages
+    : [];
+  const requestMessages = startMessages.map((msg) => ({
+    role: typeof msg.role === "string" ? msg.role : "unknown",
+    content: typeof msg.content === "string" ? msg.content : "",
+  }));
+  const errorMessage =
+    doneOrError && typeof doneOrError.message === "string"
+      ? doneOrError.message
+      : null;
+
+  return {
+    summary: run.summary,
+    phase,
+    call: {
+      callId: call.id,
+      label: call.label,
+      model: call.model,
+      status: call.status,
+      elapsedMs:
+        doneOrError && typeof doneOrError.elapsed_ms === "number"
+          ? doneOrError.elapsed_ms
+          : null,
+      legacy: call.legacy,
+      requestMessages,
+      response: doneOrError?.response,
+      responseStored: doneOrError?.response !== undefined,
+      errorMessage,
+    },
+  };
+}
+
+function isValidPhase(phase: string): boolean {
+  return PHASE_SET.has(phase);
 }
 
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");
-  const phase = req.nextUrl.searchParams.get("phase");
-  if (slug) {
-    const detail = loadRunDetail(slug);
-    if (!detail) {
-      return Response.json({ error: "Run not found" }, { status: 404 });
-    }
-    // Lazy load a single phase's entries (used by the live generate UI accordion).
-    if (phase) {
-      const group = detail.phases.find((p) => p.phase === phase);
-      return Response.json({
-        phase,
-        entries: group?.entries ?? [],
-        lines: group?.lines ?? [],
-        count: group?.entries.length ?? 0,
-      });
-    }
-    return Response.json(detail);
+  if (!slug) {
+    return Response.json({ runs: listRuns() });
   }
-  return Response.json({ runs: listRuns() });
+
+  const phase = req.nextUrl.searchParams.get("phase");
+  const call = req.nextUrl.searchParams.get("call");
+
+  if (phase && !isValidPhase(phase)) {
+    return Response.json({ error: "Invalid phase" }, { status: 400 });
+  }
+  if (call && !phase) {
+    return Response.json({ error: "phase query param is required when call is provided" }, { status: 400 });
+  }
+
+  const run = loadRun(slug);
+  if (!run) {
+    return Response.json({ error: "Run not found" }, { status: 404 });
+  }
+
+  if (!phase) {
+    return Response.json(buildRunOutline(run));
+  }
+
+  if (!call) {
+    return Response.json(buildPhaseDetail(run, phase));
+  }
+
+  const apiCall = findApiCall(run, phase, call);
+  if (!apiCall) {
+    return Response.json({ error: "API call not found" }, { status: 404 });
+  }
+  return Response.json(callDetailResponse(run, phase, apiCall));
 }

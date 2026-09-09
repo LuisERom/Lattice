@@ -4,6 +4,9 @@ from typing import Any
 
 from .common import METHODS_BY_KIND, VALID_EDGE_TYPES, VALID_ITEM_KINDS, VALID_NODE_TYPES
 
+VALID_VERIFICATION = {"unverified", "grounded"}
+VALID_SUPPORT = {"supports", "partial", "related", "contradicts"}
+
 
 def validate_contract(doc: dict[str, Any]) -> list[str]:
     errors: list[str] = []
@@ -13,10 +16,15 @@ def validate_contract(doc: dict[str, Any]) -> list[str]:
     for key in ("nodes", "edges", "items"):
         if not isinstance(doc.get(key), list):
             errors.append(f"missing or invalid '{key}' array")
+    if "sources" in doc and not isinstance(doc.get("sources"), list):
+        errors.append("invalid 'sources' array")
+    if "node_sources" in doc and not isinstance(doc.get("node_sources"), list):
+        errors.append("invalid 'node_sources' array")
     if errors:
         return errors
 
     node_refs: set[str] = set()
+    source_refs: set[str] = set()
     has_procedure = False
     for n in doc["nodes"]:
         ref = n.get("ref")
@@ -25,10 +33,16 @@ def validate_contract(doc: dict[str, Any]) -> list[str]:
         node_refs.add(ref)
         if n.get("type") not in VALID_NODE_TYPES:
             errors.append(f"node {ref}: bad type {n.get('type')!r}")
+        ver = n.get("verification")
+        if ver is not None and ver not in VALID_VERIFICATION:
+            errors.append(f"node {ref}: bad verification {ver!r}")
         if n.get("type") == "procedure":
             has_procedure = True
         if not n.get("name"):
             errors.append(f"node {ref}: missing name")
+        src_refs = n.get("source_refs")
+        if src_refs is not None and not isinstance(src_refs, list):
+            errors.append(f"node {ref}: source_refs must be an array")
     if not has_procedure:
         errors.append("no procedure node (at least one required)")
 
@@ -72,8 +86,42 @@ def validate_contract(doc: dict[str, Any]) -> list[str]:
         for m in methods:
             if m not in allowed:
                 errors.append(f"item {ref}: method {m!r} not allowed for kind {kind}")
+        for q in it.get("questions", []):
+            if q.get("verification") is not None and q.get("verification") not in VALID_VERIFICATION:
+                errors.append(f"item {ref}: invalid question verification {q.get('verification')!r}")
         if len(methods) < 2:
             errors.append(f"item {ref}: needs >=2 distinct methods so 'mastered' is reachable")
+
+    for s in doc.get("sources", []) or []:
+        ref = s.get("ref")
+        if not isinstance(ref, str) or not ref:
+            errors.append("source missing ref")
+            continue
+        if ref in source_refs:
+            errors.append(f"duplicate source ref: {ref!r}")
+            continue
+        source_refs.add(ref)
+        if not s.get("url"):
+            errors.append(f"source {ref}: missing url")
+        if not s.get("title"):
+            errors.append(f"source {ref}: missing title")
+
+    for n in doc["nodes"]:
+        ref = n.get("ref")
+        for sref in n.get("source_refs") or []:
+            if sref not in source_refs:
+                errors.append(f"node {ref}: unknown source_ref {sref!r}")
+
+    for link in doc.get("node_sources", []) or []:
+        nref = link.get("node_ref")
+        sref = link.get("source_ref")
+        if nref not in node_refs:
+            errors.append(f"node_sources: unknown node_ref {nref!r}")
+        if sref not in source_refs:
+            errors.append(f"node_sources: unknown source_ref {sref!r}")
+        support = link.get("support")
+        if support is not None and support not in VALID_SUPPORT:
+            errors.append(f"node_sources: bad support {support!r}")
 
     errors.extend(detect_prerequisite_cycles(doc))
     errors.extend(find_orphan_nodes(doc))

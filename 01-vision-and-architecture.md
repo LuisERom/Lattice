@@ -74,7 +74,7 @@ Two parameters exist from day one to support future grounding:
 - `verification`: `unverified` or `grounded`.
 - `grounding_sensitive`: boolean. The AI sets this true when the node is version-specific, recency-sensitive, or research-frontier.
 
-In v1 every node is generated `unverified`. Grounding is a future feature (see Section 12). The right axis for grounding is stability and ubiquity, not advancedness: an established textbook concept can be generated ungrounded safely, while a version-specific API detail or a contested frontier claim must later be grounded.
+In strict v1 every node is generated `unverified`. The first grounding pass is an additive post-v1 generation feature: it grounds only riskier claims and leaves stable textbook concepts ungrounded. The right axis for grounding is stability and ubiquity, not advancedness: an established textbook concept can be generated ungrounded safely, while a version-specific API detail or a contested frontier claim should be grounded.
 
 ### 3.4 Embeddings
 
@@ -301,6 +301,12 @@ Indicative, to anchor the build. Exact column types finalized in Doc 3.
 **test_questions** (generated questions)
 `id, item_id, method, prompt, expected_answer, options (nullable), verification, grounding_sensitive, created_at`
 
+**sources** (canonical citations)
+`id, url (unique), title, publisher (nullable), retrieved_at, quote (nullable), created_at`
+
+**node_sources** (node-to-citation links)
+`node_id, source_id, support (supports|partial|related|contradicts), created_at`
+
 **reviews** (log)
 `id, item_id, method, rating, graded_by (self|ai), user_answer (text), ai_grade (nullable), reviewed_at`
 
@@ -308,10 +314,10 @@ Topic mastery, coverage, and integration scores are computed from `items`, `revi
 
 ---
 
-## 12. Deferred features (named so nothing is lost)
+## 12. Deferred and next features (named so nothing is lost)
 
 - **Hybrid grading.** AI proposes a grade on free-recall and application answers, you override. Schema already stores typed answers and an `ai_grade` slot.
-- **Grounding.** Attach cited sources to nodes and questions, starting with the `grounding_sensitive` ones. Schema already carries `verification` and `grounding_sensitive`.
+- **Question-level grounding.** Grounding for questions can come after node-level grounding; v1-style review still works with node-level citations only.
 - **Retrieval / RAG.** Embeddings for dedup pre-check and connection-candidate retrieval. Schema already carries `embedding`.
 - **Nicheness** parameter.
 - **AI teaching content.** In v1 the system points you to what to learn, it does not teach. Generated teaching content is the highest hallucination-risk surface, so it waits until grounding exists.

@@ -48,6 +48,7 @@ type StreamEvent =
       name: string;
       node_type?: "concept" | "procedure";
       section_ref?: string;
+      is_seed?: boolean;
     }
   | {
       type: "node_update";
@@ -143,7 +144,7 @@ export default function GeneratePage() {
   const mountedRef = useRef(true);
 
   const progressPct = useMemo(() => {
-    const idx = PHASE_ORDER.indexOf(done ? "done" : phase);
+    const idx = PHASE_ORDER.findIndex((p) => p === (done ? "done" : phase));
     if (idx < 0) return 0;
     return Math.round((idx / (PHASE_ORDER.length - 1)) * 100);
   }, [phase, done]);
@@ -277,6 +278,7 @@ export default function GeneratePage() {
             "text-max-width": "90px",
             "text-valign": "bottom",
             "text-margin-y": 4,
+            "border-width": 0,
           },
         },
         {
@@ -294,7 +296,8 @@ export default function GeneratePage() {
             "line-color": "#3a4455",
             "target-arrow-color": "#3a4455",
             "target-arrow-shape": "triangle",
-            "curve-style": "bezier",
+            "arrow-scale": 0.8,
+            "curve-style": "straight",
             opacity: 0.75,
           },
         },

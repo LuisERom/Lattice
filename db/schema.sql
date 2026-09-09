@@ -33,6 +33,27 @@ CREATE TABLE IF NOT EXISTS nodes (
   created_at          TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Canonical source records for selective grounding. A source is a retrievable
+-- citation target (URL + title + optional quote metadata).
+CREATE TABLE IF NOT EXISTS sources (
+  id          INTEGER PRIMARY KEY,
+  url         TEXT    NOT NULL UNIQUE,
+  title       TEXT    NOT NULL,
+  publisher   TEXT    NOT NULL DEFAULT '',
+  retrieved_at TEXT   NOT NULL DEFAULT (datetime('now')),
+  quote       TEXT    NOT NULL DEFAULT '',
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Many-to-many node/source links with support labels.
+CREATE TABLE IF NOT EXISTS node_sources (
+  node_id     INTEGER NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+  source_id   INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+  support     TEXT    NOT NULL DEFAULT 'supports', -- supports | partial | related | contradicts
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (node_id, source_id)
+);
+
 -- Typed, sparse relationships. is_cross_topic is derived (endpoints' topics differ).
 CREATE TABLE IF NOT EXISTS edges (
   id             INTEGER PRIMARY KEY,
@@ -121,3 +142,6 @@ CREATE INDEX IF NOT EXISTS idx_items_topic        ON items(topic_id);
 CREATE INDEX IF NOT EXISTS idx_questions_item     ON test_questions(item_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_item       ON reviews(item_id);
 CREATE INDEX IF NOT EXISTS idx_method_prog_item   ON method_progress(item_id);
+CREATE INDEX IF NOT EXISTS idx_sources_url        ON sources(url);
+CREATE INDEX IF NOT EXISTS idx_node_sources_node  ON node_sources(node_id);
+CREATE INDEX IF NOT EXISTS idx_node_sources_src   ON node_sources(source_id);

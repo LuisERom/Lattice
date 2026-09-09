@@ -11,7 +11,7 @@ import urllib.request
 from typing import Any
 
 from .common import load_dotenv
-from .stream import stream_status
+from .stream import current_stream_slug, stream_status, stream_write
 
 
 def _request_payload(
@@ -48,6 +48,50 @@ def _infer_label(messages: list[dict[str, str]], label: str | None) -> str:
     if "Interview me to define the boundary" in joined or '"type": "scope"' in joined:
         return "SCOPE_INTERVIEW"
     return "LLM_CALL"
+
+
+def _approx_tokens(chars: int) -> int:
+    return max(1, chars // 4)
+
+
+def _log_api_call(
+    slug: str | None,
+    *,
+    call_id: str,
+    model: str,
+    status: str,
+    label: str | None,
+    n_messages: int,
+    approx_chars: int,
+    approx_tokens: int,
+    messages: list[dict[str, str]] | None = None,
+    response: dict[str, Any] | None = None,
+    elapsed_ms: int | None = None,
+    error_message: str | None = None,
+) -> None:
+    if not slug:
+        return
+    event: dict[str, Any] = {
+        "type": "api_call",
+        "api": "llm",
+        "call_id": call_id,
+        "model": model,
+        "status": status,
+        "n_messages": n_messages,
+        "approx_chars": approx_chars,
+        "approx_tokens": approx_tokens,
+    }
+    if label:
+        event["label"] = label
+    if messages is not None:
+        event["messages"] = messages
+    if response is not None:
+        event["response"] = response
+    if elapsed_ms is not None:
+        event["elapsed_ms"] = elapsed_ms
+    if error_message is not None:
+        event["message"] = error_message
+    stream_write(slug, event)
 
 
 def _fake_json_response(messages: list[dict[str, str]]) -> dict[str, Any]:
@@ -113,6 +157,8 @@ def _fake_json_response(messages: list[dict[str, str]]) -> dict[str, Any]:
         return {"nodes": []}
     if "PHASE_D_AUDITOR" in joined:
         return {"flags": []}
+    if "PHASE_D2_GROUND" in joined:
+        return {"supported": False, "sources": []}
     if "PHASE_E_SECTION" in joined or "PHASE_E_NODE" in joined or "PHASE_E_COVERAGE" in joined:
         return {"edges": []}
     if "PHASE_E_CRITIC" in joined:
@@ -135,9 +181,12 @@ def chat_json(
     label: str | None = None,
 ) -> dict[str, Any]:
     load_dotenv()
+    slug = current_stream_slug()
     call_label = _infer_label(messages, label)
     call_id = uuid.uuid4().hex[:12]
     request = _request_payload(messages, model, temperature)
+    approx_chars = sum(len(m.get("content", "")) for m in messages)
+    approx_tokens = _approx_tokens(approx_chars)
     started = time.time()
     stream_status(
         {
@@ -149,6 +198,17 @@ def chat_json(
             "request": request,
             "detail": f"Calling {model}…",
         }
+    )
+    _log_api_call(
+        slug,
+        call_id=call_id,
+        model=model,
+        status="start",
+        label=call_label,
+        n_messages=len(messages),
+        approx_chars=approx_chars,
+        approx_tokens=approx_tokens,
+        messages=messages,
     )
 
     if fake_mode_enabled():
@@ -169,14 +229,52 @@ def chat_json(
                 "detail": f"Fake LLM returned in {ms}ms",
             }
         )
+        _log_api_call(
+            slug,
+            call_id=call_id,
+            model=model,
+            status="done",
+            label=call_label,
+            n_messages=len(messages),
+            approx_chars=approx_chars,
+            approx_tokens=approx_tokens,
+            response=result,
+            elapsed_ms=max(1, ms),
+        )
         return result
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError(
+        message = (
             "OPENAI_API_KEY is not set. Put it in .env (see .env.example), "
             "or set LATTICE_FAKE_LLM=1 for offline pipeline tests."
         )
+        stream_status(
+            {
+                "type": "status",
+                "state": "llm_error",
+                "label": call_label,
+                "model": model,
+                "call_id": call_id,
+                "ms": 0,
+                "request": request,
+                "error": message,
+                "detail": message,
+            }
+        )
+        _log_api_call(
+            slug,
+            call_id=call_id,
+            model=model,
+            status="error",
+            label=call_label,
+            n_messages=len(messages),
+            approx_chars=approx_chars,
+            approx_tokens=approx_tokens,
+            elapsed_ms=1,
+            error_message=message,
+        )
+        raise RuntimeError(message)
     base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
     req = urllib.request.Request(
         f"{base_url}/chat/completions",
@@ -222,6 +320,18 @@ def chat_json(
                     "detail": f"LLM responded in {ms / 1000:.1f}s",
                 }
             )
+            _log_api_call(
+                slug,
+                call_id=call_id,
+                model=model,
+                status="done",
+                label=call_label,
+                n_messages=len(messages),
+                approx_chars=approx_chars,
+                approx_tokens=approx_tokens,
+                response=result,
+                elapsed_ms=max(1, ms),
+            )
             return result
         except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as exc:
             last_err = exc
@@ -231,6 +341,7 @@ def chat_json(
     ms = int((time.time() - started) * 1000)
     if isinstance(last_err, urllib.error.HTTPError):
         detail = last_err.read().decode("utf-8", "replace")
+        message = f"LLM API error {last_err.code}: {detail}"
         stream_status(
             {
                 "type": "status",
@@ -244,18 +355,32 @@ def chat_json(
                 "detail": f"HTTP {last_err.code} after {ms / 1000:.1f}s",
             }
         )
-        raise RuntimeError(f"LLM API error {last_err.code}: {detail}") from last_err
-    stream_status(
-        {
-            "type": "status",
-            "state": "llm_error",
-            "label": call_label,
-            "model": model,
-            "call_id": call_id,
-            "ms": ms,
-            "request": request,
-            "error": str(last_err),
-            "detail": f"Failed after {ms / 1000:.1f}s: {last_err}",
-        }
+    else:
+        message = f"LLM call failed: {last_err}"
+        stream_status(
+            {
+                "type": "status",
+                "state": "llm_error",
+                "label": call_label,
+                "model": model,
+                "call_id": call_id,
+                "ms": ms,
+                "request": request,
+                "error": str(last_err),
+                "detail": f"Failed after {ms / 1000:.1f}s: {last_err}",
+            }
+        )
+
+    _log_api_call(
+        slug,
+        call_id=call_id,
+        model=model,
+        status="error",
+        label=call_label,
+        n_messages=len(messages),
+        approx_chars=approx_chars,
+        approx_tokens=approx_tokens,
+        elapsed_ms=max(1, ms),
+        error_message=message,
     )
-    raise RuntimeError(f"LLM call failed: {last_err}") from last_err
+    raise RuntimeError(message) from last_err

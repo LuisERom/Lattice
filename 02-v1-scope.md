@@ -4,6 +4,8 @@
 
 This doc draws the hard line for the first build. It takes Doc 1 and says exactly what v1 includes, what it defers, and how we know v1 is done and correct. Doc 3 (the Cursor build plan) is written only after this scope is locked, because the task list depends on where this line sits.
 
+Note for the current repo: selective grounding/source attachment is being built as an additive post-v1 milestone. This document still defines strict v1 acceptance.
+
 ---
 
 ## 1. The v1 goal

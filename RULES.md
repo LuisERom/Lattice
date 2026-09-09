@@ -19,8 +19,11 @@ is the spec for "why"; Doc 2 (`02-v1-scope.md`) is what is in/out of v1.
 7. Generation lives only in the Python script and only emits JSON. The runtime
    app never calls an LLM in v1 (a future "check me" path is not built yet).
 8. v1 is one topic. Do not build appending, cross-topic edges, integration
-   items, gap-search, embeddings, grounding, or AI grading. Leave schema room,
-   write none of the code.
+   items, gap-search, or AI grading. Leave schema room, write none of that
+   code in strict-v1 work.
+   Carve-out: the selective grounding milestone is allowed as an additive
+   post-v1 generation feature (generator-side source attachment plus runtime
+   source display), while the daily runtime still never calls an LLM.
 9. Self-grade only. No auto-grading in v1.
 10. Thresholds (known/mastered R cutoffs, method counts) and the mastery
     weighting are read from settings at runtime, never hardcoded.
